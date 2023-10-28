@@ -1,0 +1,432 @@
+"""
+This module contains functions for generating data relating to subgroups
+of the n-qubit Pauli group.
+
+In writing this code, we use the fact that, ignoring the phase, there's a
+bijection between elements of the Pauli group and bit strings of length
+2n (i.e. integers between 0 and 2^(2n) - 1), where the bit string
+corresponds to the element's check vector. Hence we represent an
+element of the Pauli group (ignoring the phase) as a vector in F_2^(2n).
+"""
+
+import ctypes
+import pickle
+import time
+import itertools as it
+import multiprocessing as mp
+import numpy as np
+
+from stabiliser_states import state_from_subgroup
+
+O_shared = None
+Lambda_shared = None
+
+
+def np_block(X):
+    xtmp1 = np.hstack(X[0])
+    xtmp2 = np.hstack(X[1])
+    return np.vstack((xtmp1, xtmp2))
+
+
+def binary_matrix_rank(A):
+    """
+    Finds the rank of the binary matrix A by effectively converting it
+    into row echelon form.
+
+    Parameters
+    ----------
+    A : numpy.ndarray
+
+    Returns
+    -------
+    rank : int
+        The rank of matrix A.
+
+    """
+
+    num_rows, num_cols = A.shape
+    rank = 0
+
+    for j in range(num_cols):
+        # Find the number of rows that have a 1 in the jth column
+        rows = []
+        for i in range(num_rows):
+            if A[i, j] == 1:
+                rows.append(i)
+
+        # If the jth column has more than one 1, use row addition to
+        # remove all 1s except the first one, then remove the first
+        # such row and increase the rank by 1
+        if len(rows) >= 1:
+            for c in range(1, len(rows)):
+                A[rows[c], :] = (A[rows[c], :] + A[rows[0], :]) % 2
+
+            A = np.delete(A, rows[0], 0)
+            num_rows -= 1
+            rank += 1
+
+    # For each remaining non-zero row in A, increase the rank by 1
+    for row in A:
+        if sum(row) > 0:
+            rank += 1
+
+    return rank
+
+
+def get_rref_matrices(num_rows, rows=None):
+    """
+    Generator that finds all the n by 2n reduced row echelon form matrices
+    (with no zero rows) with the specified number of rows.
+
+    Note that, by construction, the rows of these matrices are
+    linearly independent.
+
+    Parameters
+    ----------
+    num_rows : int
+        The number of rows that the rref matrices are to have.
+    rows : numpy.ndarray, optional
+        Any rows (in rref) that have already been generated.
+
+    Yields
+    ------
+    rref_mat : numpy.ndarray
+        The next rref matrix.
+
+    """
+
+    current_num_rows, num_cols = (0, 2*num_rows) \
+        if rows is None else rows.shape
+    if current_num_rows == num_rows:
+        yield rows
+    # if current_num_rows > num_rows:
+    #     raise ValueError
+
+    rref_mats_temp = []
+
+    # Find the index of the column containing the last row's leading 1
+    start_col = -1 if rows is None else list(rows[-1, :]).index(1)
+
+    # Consider all prototype extra rows
+    for extra_row in \
+        it.islice(it.product([0, 1], repeat=num_cols - start_col - 1),
+                  1, None):
+
+        extra_row = np.array(tuple(0 for _ in range(start_col + 1))
+                             + extra_row)
+
+        if rows is None:
+            rref_mats_temp.append(extra_row.reshape(1, num_cols))
+        else:
+            # Check if this extra row's leading 1 is in a column
+            # without any other 1s; if so, add it to the matrix!
+            leading_col = list(extra_row).index(1)
+            if sum(rows[:, leading_col]) == 0:
+                rref_mats_temp.append(np.vstack((rows, extra_row)))
+
+    # Recursively run the function until enough rows have been added
+    if current_num_rows == num_rows - 1:
+        yield from rref_mats_temp
+    elif current_num_rows < num_rows - 1:
+        for new_rows in rref_mats_temp:
+            yield from get_rref_matrices(num_rows, new_rows)
+
+
+def check_independent(check_matrix):
+    """
+    Checks whether the generators, given by the check matrix
+    check_matrix, are independent.
+
+    We use the fact that the generators are independent iff the
+    check vectors are linearly independent.
+
+    Parameters
+    ----------
+    check_matrix : numpy.ndarray
+
+    Returns
+    -------
+    independent : bool
+        Whether or not the generators are independent.
+
+    """
+
+    n = check_matrix.shape[0]
+
+    # For n = 1,2, the sets of generators are always independent
+    # due to how we create them
+    if n == 1 or n == 2:
+        return True
+
+    return binary_matrix_rank(check_matrix.copy()) == n
+
+
+def check_commute(check_matrix):
+    """
+    Checks whether the generators, given by the check matrix
+    check_matrix, commute with each other.
+
+    We use the fact that the generators commute if and only if
+
+    .. math::
+        G \Lambda G^T = 0 \pmod{2},
+
+    where :math:`G` is the matrix whose rows are check vectors
+    (i.e. check_matrix) and
+
+    .. math::
+        \Lambda = \\begin{pmatrix} 0 & I \\\ -I & 0 \end{pmatrix}.
+
+    Parameters
+    ----------
+    check_matrix : numpy.ndarray
+
+    Returns
+    -------
+    commute : bool
+        Whether or not the generators commute.
+
+    """
+
+    n = check_matrix.shape[0]
+
+    # Define the block matrix big_lambda
+    I = np.eye(n)
+    O = np.zeros((n, n))
+    # Lambda = np.block([[O, I],
+    #                    [-I, O]])
+    Lambda = np_block(((O, I), (-I, O)))
+
+    # O = to_numpy_array(O_shared, n, n)
+    # Lambda = to_numpy_array(Lambda_shared, 2*n, 2*n)
+
+    m1 = check_matrix
+    m2 = check_matrix.T
+    tt = np.dot(m1, np.dot(Lambda, m2))
+
+    return np.array_equal(
+        # (check_matrix @ Lambda @ check_matrix.T) % 2, O
+        tt % 2, O
+    )
+
+
+def check_valid(args):
+    """
+    Checks if the check matrix represents a valid set of generators
+    for a maximal abelian subgroup of the n-qubit Pauli group.
+
+    Parameters
+    ----------
+    args : tuple
+        Contains the following elements:
+
+        index : int, optional
+
+        check_matrix : numpy.ndarray
+
+    Returns
+    -------
+    None
+        If the check matrix is not valid.
+    check_matrix : numpy.ndarray
+        check_matrix if it is valid.
+
+    """
+
+    if len(args) == 1:
+        check_matrix = args[0]
+    elif len(args) == 2:
+        index, check_matrix = args
+
+    # For testing
+    if index % 10000 == 0:
+        print(
+            f'The check matrix that is being tested is\n'
+            f'{check_matrix}'
+        )
+
+    with O_shared.get_lock(), Lambda_shared.get_lock():
+        if check_commute(check_matrix):
+            return check_matrix
+        return None
+
+
+def check_support_size(args):
+    """
+
+    Parameters
+    ----------
+    args : tuple:
+        Contains the following elements:
+
+        index : int, optional
+
+        check_matrx : numpy.ndarray
+
+        n : int
+
+    Returns
+    -------
+    support_size : int
+
+    check_matrix : numpy.ndarray
+
+    state_mat : numpy.ndarray
+
+    """
+
+    if len(args) == 2:
+        check_matrix, n = args
+    elif len(args) == 3:
+        index, check_matrix, n = args
+        if index % 10000 == 0:
+            print(index)
+
+    if check_commute(check_matrix):
+        support_size = 2 ** binary_matrix_rank(check_matrix[:, :n])
+        if support_size in [2, 4]:
+            # print(f'{support_size = }')
+            # Get matrix of states
+            state_mat = np.zeros((2**n, 2**n), dtype=complex)
+            for i, phases in enumerate(it.product((0, 1), repeat=n)):
+                state_data = state_from_subgroup((n, check_matrix, phases))
+                state_mat[:, i] = state_data['vector'].ravel()
+
+            return support_size, check_matrix, state_mat
+
+    return np.nan, None, None
+
+
+# Some functions that allow numpy arrays to be shared between processes
+
+def to_numpy_array(mp_arr, num_rows, num_cols):
+    return np.frombuffer(mp_arr.get_obj()).reshape(num_rows, num_cols)
+
+
+def init_shared_arrays(O_shared_, Lambda_shared_):
+    global O_shared, Lambda_shared
+    O_shared = O_shared_
+    Lambda_shared = Lambda_shared_
+
+
+# The main function
+def get_max_abelian_subgroups(n):
+    """
+    Finds the maximal abelian subgroups of the n-qubit Pauli group,
+    ignoring the phase of each generator.
+
+    Parameters
+    ----------
+    n : int
+
+    Returns
+    -------
+    subgroups : list
+        A list containing the check matrices relating to all the maximal,
+        abelian subgroups.
+
+    """
+
+    global O_shared, Lambda_shared
+
+    start_time = time.perf_counter()
+
+    subgroups = []
+
+    # Define the block matrix big_lambda (and associated matrices)
+    I = np.eye(n)
+
+    O_shared = mp.Array(ctypes.c_double, n**2)
+    O = to_numpy_array(O_shared, n, n)
+    O[:] = np.zeros((n, n))
+
+    # Lambda = np.block([[O, I],
+    #                    [-I, O]])
+    Lambda_shared = mp.Array(ctypes.c_double, 4 * n**2)
+    Lambda = to_numpy_array(Lambda_shared, 2*n, 2*n)
+    Lambda[:] = np_block(((O, I), (-I, O)))
+
+    text_file_string = ''
+
+    # Consider every single n by 2n check matrix in reduced row echelon form,
+    # and add to the list of subgroups if the generators
+    # commute and are independent
+    with mp.Pool(initializer=init_shared_arrays,
+                 initargs=(O_shared, Lambda_shared)) as pool:
+        subgroups_iter = pool.imap(
+            check_valid,
+            enumerate(get_rref_matrices(n)),
+            chunksize=1000
+        )
+
+        for item in subgroups_iter:
+            if item is not None:
+                subgroups.append(item)
+                text_file_string += (
+                    '\n'.join([
+                        s.strip() for s in ''.join([
+                            s.strip() for s in np.array_str(item).split('[')
+                        ]).split(']')
+                    ])
+                )
+
+    print(f'Total elapsed time: {time.perf_counter() - start_time}')
+
+    with open(f'data/{n}_qubit_subgroups.txt', 'w') as writer:
+        writer.write(text_file_string)
+    with open(f'data/{n}_qubit_subgroups.data', 'wb') as writer:
+        pickle.dump(subgroups, writer)
+    return subgroups
+
+
+def get_bases_with_nice_supports(n):
+    global O_shared, Lambda_shared
+
+    start_time = time.perf_counter()
+
+    support_2 = []
+    support_4 = []
+
+    # Define the block matrix big_lambda (and associated matrices)
+    I = np.eye(n)
+
+    O_shared = mp.Array(ctypes.c_double, n**2)
+    O = to_numpy_array(O_shared, n, n)
+    O[:] = np.zeros((n, n))
+
+    # Lambda = np.block([[O, I],
+    #                    [-I, O]])
+    Lambda_shared = mp.Array(ctypes.c_double, 4 * n**2)
+    Lambda = to_numpy_array(Lambda_shared, 2*n, 2*n)
+    Lambda[:] = np_block(((O, I), (-I, O)))
+
+    with mp.Pool(initializer=init_shared_arrays,
+                 initargs=(O_shared, Lambda_shared)) as pool, \
+            open(f'data/{n}_qubit_support_2.data', 'ab') as writer2, \
+            open(f'data/{n}_qubit_support_4.data', 'ab') as writer4:
+        subgroups_iter = pool.imap(
+            check_support_size,
+            zip(it.count(0), get_rref_matrices(n), it.repeat(n)),
+            chunksize=1000
+        )
+
+        for support_size, xmatr, state_mat in subgroups_iter:
+            if xmatr is not None:
+                if support_size == 2:
+                    support_2.append((xmatr, state_mat))
+                    np.save(writer2, xmatr)
+                    np.save(writer2, state_mat)
+                else:
+                    support_4.append((xmatr, state_mat))
+                    np.save(writer4, xmatr)
+                    np.save(writer4, state_mat)
+
+    print(f'Total elapsed time: {time.perf_counter() - start_time}')
+
+    return support_2, support_4
+
+
+if __name__ == '__main__':
+    # subgroups = get_max_abelian_subgroups(5)
+    support_2, support_4 = get_bases_with_nice_supports(3)
+    # input('Enter anything to exit the program.')
