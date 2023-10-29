@@ -74,8 +74,15 @@ def binary_matrix_rank(A):
     return rank
 
 
+# TODO Hmm...
+# mat = np.array([[1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0],
+#                 [0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0],
+#                 [0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1],
+#                 [0, 0, 0, 1, 0, 0, 1, 1, 0, 1, 0, 1],
+#                 [0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0],
+#                 [0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0]], dtype=np.int8)
 # parallel speeds up computation only over very large matrices
-@numba.jit(nopython=True, parallel=False)
+# @numba.jit(nopython=True, parallel=False)
 def gf2elim(M):
     m, n = M.shape
     i = 0
