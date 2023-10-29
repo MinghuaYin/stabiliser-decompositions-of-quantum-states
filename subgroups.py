@@ -10,13 +10,14 @@ element of the Pauli group (ignoring the phase) as a vector in F_2^(2n).
 """
 
 import ctypes
+import numba
 import pickle
 import time
 import itertools as it
 import multiprocessing as mp
 import numpy as np
 
-from stabiliser_states import state_from_subgroup
+from stabilizer_states import state_from_subgroup
 
 O_shared = None
 Lambda_shared = None
@@ -73,6 +74,32 @@ def binary_matrix_rank(A):
     return rank
 
 
+# parallel speeds up computation only over very large matrices
+@numba.jit(nopython=True, parallel=False)
+def gf2elim(M):
+    m, n = M.shape
+    i = 0
+    j = 0
+    rank = 0
+
+    while i < m and j < n:
+        k = np.argmax(M[i:, j]) + i
+        temp = np.copy(M[k])
+        M[k] = M[i]
+        M[i] = temp
+        aijn = M[i, j:]
+        # make a copy otherwise M will be directly affected
+        col = np.copy(M[:, j])
+        col[i] = 0  # avoid xoring pivot row with itself
+        flip = np.outer(col, aijn)
+        M[:, j:] = M[:, j:] ^ flip
+        i += 1
+        j += 1
+        rank += 1
+
+    return M, rank
+
+
 def get_rref_matrices(num_rows, rows=None):
     """
     Generator that finds all the n by 2n reduced row echelon form matrices
@@ -109,11 +136,11 @@ def get_rref_matrices(num_rows, rows=None):
 
     # Consider all prototype extra rows
     for extra_row in \
-        it.islice(it.product([0, 1], repeat=num_cols - start_col - 1),
+        it.islice(it.product((0, 1), repeat=num_cols - start_col - 1),
                   1, None):
 
         extra_row = np.array(tuple(0 for _ in range(start_col + 1))
-                             + extra_row)
+                             + extra_row, dtype=np.int8)
 
         if rows is None:
             rref_mats_temp.append(extra_row.reshape(1, num_cols))
@@ -121,7 +148,7 @@ def get_rref_matrices(num_rows, rows=None):
             # Check if this extra row's leading 1 is in a column
             # without any other 1s; if so, add it to the matrix!
             leading_col = list(extra_row).index(1)
-            if sum(rows[:, leading_col]) == 0:
+            if np.sum(rows[:, leading_col]) == 0:
                 rref_mats_temp.append(np.vstack((rows, extra_row)))
 
     # Recursively run the function until enough rows have been added
@@ -158,7 +185,7 @@ def check_independent(check_matrix):
     if n == 1 or n == 2:
         return True
 
-    return binary_matrix_rank(check_matrix.copy()) == n
+    return binary_matrix_rank(check_matrix.copy()) == n  # TODO
 
 
 def check_commute(check_matrix):
@@ -191,10 +218,8 @@ def check_commute(check_matrix):
     n = check_matrix.shape[0]
 
     # Define the block matrix big_lambda
-    I = np.eye(n)
-    O = np.zeros((n, n))
-    # Lambda = np.block([[O, I],
-    #                    [-I, O]])
+    I = np.eye(n, dtype=np.int8)
+    O = np.zeros((n, n), dtype=np.int8)
     Lambda = np_block(((O, I), (-I, O)))
 
     # O = to_numpy_array(O_shared, n, n)
@@ -251,52 +276,6 @@ def check_valid(args):
         return None
 
 
-def check_support_size(args):
-    """
-
-    Parameters
-    ----------
-    args : tuple:
-        Contains the following elements:
-
-        index : int, optional
-
-        check_matrx : numpy.ndarray
-
-        n : int
-
-    Returns
-    -------
-    support_size : int
-
-    check_matrix : numpy.ndarray
-
-    state_mat : numpy.ndarray
-
-    """
-
-    if len(args) == 2:
-        check_matrix, n = args
-    elif len(args) == 3:
-        index, check_matrix, n = args
-        if index % 10000 == 0:
-            print(index)
-
-    if check_commute(check_matrix):
-        support_size = 2 ** binary_matrix_rank(check_matrix[:, :n])
-        if support_size in [2, 4]:
-            # print(f'{support_size = }')
-            # Get matrix of states
-            state_mat = np.zeros((2**n, 2**n), dtype=complex)
-            for i, phases in enumerate(it.product((0, 1), repeat=n)):
-                state_data = state_from_subgroup((n, check_matrix, phases))
-                state_mat[:, i] = state_data['vector'].ravel()
-
-            return support_size, check_matrix, state_mat
-
-    return np.nan, None, None
-
-
 # Some functions that allow numpy arrays to be shared between processes
 
 def to_numpy_array(mp_arr, num_rows, num_cols):
@@ -336,97 +315,39 @@ def get_max_abelian_subgroups(n):
     # Define the block matrix big_lambda (and associated matrices)
     I = np.eye(n)
 
-    O_shared = mp.Array(ctypes.c_double, n**2)
+    O_shared = mp.Array(ctypes.c_int8, n**2)
     O = to_numpy_array(O_shared, n, n)
     O[:] = np.zeros((n, n))
 
-    # Lambda = np.block([[O, I],
-    #                    [-I, O]])
-    Lambda_shared = mp.Array(ctypes.c_double, 4 * n**2)
+    Lambda_shared = mp.Array(ctypes.c_int8, 4 * n**2)
     Lambda = to_numpy_array(Lambda_shared, 2*n, 2*n)
     Lambda[:] = np_block(((O, I), (-I, O)))
-
-    text_file_string = ''
 
     # Consider every single n by 2n check matrix in reduced row echelon form,
     # and add to the list of subgroups if the generators
     # commute and are independent
     with mp.Pool(initializer=init_shared_arrays,
-                 initargs=(O_shared, Lambda_shared)) as pool:
-        subgroups_iter = pool.imap(
+                 initargs=(O_shared, Lambda_shared)) as pool, \
+            open('data/{n}_qubit_subgroups.data', 'ab') as writer:
+        results = pool.imap(
             check_valid,
             enumerate(get_rref_matrices(n)),
             chunksize=1000
         )
 
-        for item in subgroups_iter:
+        for item in results:
             if item is not None:
                 subgroups.append(item)
-                text_file_string += (
-                    '\n'.join([
-                        s.strip() for s in ''.join([
-                            s.strip() for s in np.array_str(item).split('[')
-                        ]).split(']')
-                    ])
-                )
+                if len(subgroups) == 100_000:
+                    pickle.dump(subgroups, writer)
+                    subgroups = []
+
+        pickle.dump(subgroups, writer)
 
     print(f'Total elapsed time: {time.perf_counter() - start_time}')
 
-    with open(f'data/{n}_qubit_subgroups.txt', 'w') as writer:
-        writer.write(text_file_string)
-    with open(f'data/{n}_qubit_subgroups.data', 'wb') as writer:
-        pickle.dump(subgroups, writer)
     return subgroups
 
 
-def get_bases_with_nice_supports(n):
-    global O_shared, Lambda_shared
-
-    start_time = time.perf_counter()
-
-    support_2 = []
-    support_4 = []
-
-    # Define the block matrix big_lambda (and associated matrices)
-    I = np.eye(n)
-
-    O_shared = mp.Array(ctypes.c_double, n**2)
-    O = to_numpy_array(O_shared, n, n)
-    O[:] = np.zeros((n, n))
-
-    # Lambda = np.block([[O, I],
-    #                    [-I, O]])
-    Lambda_shared = mp.Array(ctypes.c_double, 4 * n**2)
-    Lambda = to_numpy_array(Lambda_shared, 2*n, 2*n)
-    Lambda[:] = np_block(((O, I), (-I, O)))
-
-    with mp.Pool(initializer=init_shared_arrays,
-                 initargs=(O_shared, Lambda_shared)) as pool, \
-            open(f'data/{n}_qubit_support_2.data', 'ab') as writer2, \
-            open(f'data/{n}_qubit_support_4.data', 'ab') as writer4:
-        subgroups_iter = pool.imap(
-            check_support_size,
-            zip(it.count(0), get_rref_matrices(n), it.repeat(n)),
-            chunksize=1000
-        )
-
-        for support_size, xmatr, state_mat in subgroups_iter:
-            if xmatr is not None:
-                if support_size == 2:
-                    support_2.append((xmatr, state_mat))
-                    np.save(writer2, xmatr)
-                    np.save(writer2, state_mat)
-                else:
-                    support_4.append((xmatr, state_mat))
-                    np.save(writer4, xmatr)
-                    np.save(writer4, state_mat)
-
-    print(f'Total elapsed time: {time.perf_counter() - start_time}')
-
-    return support_2, support_4
-
-
 if __name__ == '__main__':
-    # subgroups = get_max_abelian_subgroups(5)
-    support_2, support_4 = get_bases_with_nice_supports(3)
-    # input('Enter anything to exit the program.')
+    subgroups = get_max_abelian_subgroups(5)
