@@ -38,6 +38,8 @@ def binary_matrix_rank(A):
     ----------
     A : numpy.ndarray
 
+    N.B. This method *changes* the matrix A!
+
     Returns
     -------
     rank : int
@@ -75,12 +77,6 @@ def binary_matrix_rank(A):
 
 
 # TODO Can we get the rank more efficiently?
-# mat = np.array([[1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0],
-#                 [0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0],
-#                 [0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1],
-#                 [0, 0, 0, 1, 0, 0, 1, 1, 0, 1, 0, 1],
-#                 [0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0],
-#                 [0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0]], dtype=np.int8)
 # parallel speeds up computation only over very large matrices
 # @numba.jit(nopython=True, parallel=False)
 def gf2elim(M):
@@ -364,4 +360,4 @@ def get_max_abelian_subgroups(n):
 
 
 if __name__ == '__main__':
-    subgroups = get_max_abelian_subgroups(5)
+    subgroups = get_max_abelian_subgroups(6)
