@@ -74,7 +74,7 @@ def binary_matrix_rank(A):
     return rank
 
 
-# TODO Hmm...
+# TODO Can we get the rank more efficiently?
 # mat = np.array([[1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0],
 #                 [0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0],
 #                 [0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1],
@@ -84,14 +84,21 @@ def binary_matrix_rank(A):
 # parallel speeds up computation only over very large matrices
 # @numba.jit(nopython=True, parallel=False)
 def gf2elim(M):
+    """
+    N.B. This method *changes* the matrix M!
+
+    """
+
     m, n = M.shape
     i = 0
     j = 0
-    rank = 0
+    # rank = 0
 
     while i < m and j < n:
+        # Find the row with the next leading 1
         k = np.argmax(M[i:, j]) + i
         temp = np.copy(M[k])
+        # Move this row into position via a swap
         M[k] = M[i]
         M[i] = temp
         aijn = M[i, j:]
@@ -102,9 +109,9 @@ def gf2elim(M):
         M[:, j:] = M[:, j:] ^ flip
         i += 1
         j += 1
-        rank += 1
+        # rank += 1
 
-    return M, rank
+    return M
 
 
 def get_rref_matrices(num_rows, rows=None):
