@@ -6,9 +6,10 @@ np.random.seed(1)
 
 # The threshold value below which we consider an element to be zero.
 
-A  = [[-1, -1 , 0.707106781, 0,0,0], [-1, 1 , 0, 0.707106781,0,0], [-1, -1j , 0, 0,0.707106781,0], [-1, 1j , 0, 0,0, 0.707106781]]
+A = [[-1, -1, 0.707106781, 0, 0, 0], [-1, 1, 0, 0.707106781, 0, 0],
+     [-1, -1j, 0, 0, 0.707106781, 0], [-1, 1j, 0, 0, 0, 0.707106781]]
 
-b  = [1 , 0.707106781 + 0.707106781j, 0, 0,0,0]
+b = [1, 0.707106781 + 0.707106781j, 0, 0, 0, 0]
 
 # Create variable.
 x_l1 = cp.Variable(4)
@@ -17,8 +18,8 @@ ll = 1
 A_real = []
 A_im = []
 for v in A:
-      A_real.append(np.real(v))
-      A_im.append(np.imag(v))
+    A_real.append(np.real(v))
+    A_im.append(np.imag(v))
 
 
 # Create constraint.
@@ -27,7 +28,8 @@ for v in A:
 
 constraints = []
 
-obj = cp.Minimize(cp.norm(A_real@x_l1  + A_im@x_l1- b,2) + ll*(cp.norm(x_l1, 1)))
+obj = cp.Minimize(cp.norm(A_real@x_l1 + A_im@x_l1 - b, 2) +
+                  ll*(cp.norm(x_l1, 1)))
 
 #prob = cp.Problem(obj, constraints)
 prob = cp.Problem(obj)
@@ -36,5 +38,4 @@ print("status: {}".format(prob.status))
 
 #nnz_l1 = (np.absolute(x_l1.value) > delta).sum()
 print("optimal objective value: {}".format(obj.value))
-print (x_l1.value)
-
+print(x_l1.value)

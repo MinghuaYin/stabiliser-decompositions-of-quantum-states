@@ -8,7 +8,8 @@ import numpy as np
 
 
 from subgroups import gf2elim
-from stabilizer_states import rref_binary
+import stabilizer_states as stabs
+import extent_opti as eo
 
 mat = np.array([[1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0],
                 [0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0],
@@ -19,8 +20,10 @@ mat = np.array([[1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0],
 
 
 if __name__ == '__main__':
-    print(timeit.timeit('gf2elim(np.copy(mat))',
+    print(timeit.timeit('eo.rref_binary(np.random.rand(6, 12).round().astype(np.int8))',
           globals=globals(), number=100_000))
-    print(timeit.timeit('rref_binary(np.copy(mat))',
+    print(timeit.timeit('gf2elim(np.random.rand(6, 12).round().astype(np.int8))',
+          globals=globals(), number=100_000))
+    print(timeit.timeit('stabs.rref_binary(np.random.rand(6, 12).round().astype(np.int8))',
           globals=globals(), number=100_000))
     print('----------')
