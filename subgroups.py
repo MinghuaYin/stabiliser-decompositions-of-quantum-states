@@ -17,10 +17,11 @@ import itertools as it
 import multiprocessing as mp
 import numpy as np
 
-from stabilizer_states import state_from_subgroup
+# O_shared = None
+# Lambda_shared = None
 
-O_shared = None
-Lambda_shared = None
+O = None
+Lambda = None
 
 
 def np_block(X):
@@ -228,9 +229,9 @@ def check_commute(check_matrix):
     n = check_matrix.shape[0]
 
     # Define the block matrix big_lambda
-    I = np.eye(n, dtype=np.int8)
-    O = np.zeros((n, n), dtype=np.int8)
-    Lambda = np_block(((O, I), (-I, O)))
+    # I = np.eye(n, dtype=np.int8)
+    # O = np.zeros((n, n), dtype=np.int8)
+    # Lambda = np_block(((O, I), (-I, O)))
 
     # O = to_numpy_array(O_shared, n, n)
     # Lambda = to_numpy_array(Lambda_shared, 2*n, 2*n)
@@ -280,10 +281,10 @@ def check_valid(args):
             f'{check_matrix}'
         )
 
-    with O_shared.get_lock(), Lambda_shared.get_lock():
-        if check_commute(check_matrix):
-            return check_matrix
-        return None
+    # with O_shared.get_lock(), Lambda_shared.get_lock():
+    if check_commute(check_matrix):
+        return check_matrix
+    return None
 
 
 # Some functions that allow numpy arrays to be shared between processes
@@ -316,7 +317,8 @@ def get_max_abelian_subgroups(n):
 
     """
 
-    global O_shared, Lambda_shared
+    # global O_shared, Lambda_shared
+    global O, Lambda
 
     start_time = time.perf_counter()
 
@@ -325,24 +327,27 @@ def get_max_abelian_subgroups(n):
     # Define the block matrix big_lambda (and associated matrices)
     I = np.eye(n)
 
-    O_shared = mp.Array(ctypes.c_int8, n**2)
-    O = to_numpy_array(O_shared, n, n)
-    O[:] = np.zeros((n, n))
+    # O_shared = mp.Array(ctypes.c_int8, n**2)
+    # O = to_numpy_array(O_shared, n, n)
+    # O[:] = np.zeros((n, n))
+    O = np.zeros((n, n))
 
-    Lambda_shared = mp.Array(ctypes.c_int8, 4 * n**2)
-    Lambda = to_numpy_array(Lambda_shared, 2*n, 2*n)
-    Lambda[:] = np_block(((O, I), (-I, O)))
+    # Lambda_shared = mp.Array(ctypes.c_int8, 4 * n**2)
+    # Lambda = to_numpy_array(Lambda_shared, 2*n, 2*n)
+    # Lambda[:] = np_block(((O, I), (-I, O)))
+    Lambda = np_block(((O, I), (-I, O)))
 
     # Consider every single n by 2n check matrix in reduced row echelon form,
     # and add to the list of subgroups if the generators
     # commute and are independent
-    with mp.Pool(initializer=init_shared_arrays,
-                 initargs=(O_shared, Lambda_shared)) as pool, \
-            open('data/{n}_qubit_subgroups.data', 'ab') as writer:
+    # with mp.Pool(initializer=init_shared_arrays,
+    #              initargs=(O_shared, Lambda_shared)) as pool, \
+    with mp.Pool() as pool, \
+            open(f'data/{n}_qubit_subgroups_a.data', 'ab') as writer:
         results = pool.imap(
             check_valid,
             enumerate(get_rref_matrices(n)),
-            chunksize=1000
+            chunksize=10
         )
 
         for item in results:
