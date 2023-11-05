@@ -91,6 +91,7 @@ def get_stab_support(xmatr_aug: np.ndarray) -> np.ndarray(dtype=np.int8):
     signs = xmatr_aug[:, -1]
 
     # TODO Is this efficient?
+    # TODO Need to fix -- *inner product*, not addition
     for c in range(2**n):
         if np.array_equiv(pure_zs_numeric ^ c, signs):
             break
