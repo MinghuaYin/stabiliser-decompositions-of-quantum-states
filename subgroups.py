@@ -20,6 +20,7 @@ import numpy as np
 # O_shared = None
 # Lambda_shared = None
 
+# TODO Are these global variables slowing down the program?
 O = None
 Lambda = None
 
