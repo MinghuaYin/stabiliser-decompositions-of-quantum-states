@@ -2,7 +2,11 @@
 # -*- coding: utf-8 -*-
 
 import numba
+import itertools as it
 import numpy as np
+
+from functools import reduce
+from typing import List
 
 
 def add_rows(a: np.ndarray, b: np.ndarray, n):
@@ -13,8 +17,8 @@ def add_rows(a: np.ndarray, b: np.ndarray, n):
     """
 
     # 0: I, 1: X, 3: Z, 4: Y
-    a_mod_4 = a[:n] + 3*a[n:]
-    b_mod_4 = b[:n] + 3*b[n:]
+    a_mod_4 = a[:n] + 3*a[n:-1]
+    b_mod_4 = b[:n] + 3*b[n:-1]
 
     where_id = (a_mod_4 * b_mod_4 == 0)
     double_paulis = a_mod_4 - b_mod_4
@@ -32,7 +36,7 @@ def add_rows(a: np.ndarray, b: np.ndarray, n):
 
 
 @numba.jit(nopython=True, parallel=False)
-def rref_binary(xmatr_aug):
+def rref_binary(xmatr_aug: np.ndarray):
     """
     'rref' function specifically for augmented check matrices.
 
@@ -52,7 +56,10 @@ def rref_binary(xmatr_aug):
 
             for ii in range(num_rows):
                 if ii != row_to_comp and xmatr_aug[ii, j] != 0:
-                    xmatr_aug[ii, :] ^= xmatr_aug[row_to_comp, :]
+                    # xmatr_aug[ii, :] ^= xmatr_aug[row_to_comp, :]
+                    xmatr_aug[ii, :] = add_rows(xmatr_aug[ii, :],
+                                                xmatr_aug[row_to_comp, :],
+                                                num_rows)
 
             row_to_comp += 1
             if row_to_comp == num_rows:
@@ -61,11 +68,37 @@ def rref_binary(xmatr_aug):
     return xmatr_aug
 
 
-def get_stab_support(xmatr_aug):
-    pass
+def get_stab_support(xmatr_aug: np.ndarray) -> np.ndarray(dtype=np.int8):
+    n = xmatr_aug.shape[0]
+    x_part = xmatr_aug[:, :n]
+    x_part = x_part[~np.all(x_part == 0, axis=1)].tolist()
+    k = len(x_part)
+
+    # If support is whole of F_2^n, then we're done
+    if k == n:
+        return np.array(range(2**n), dtype=np.int8)
+
+    vector_space_basis = np.array([int(''.join(str(b) for b in bits), 2)
+                                   for bits in x_part])
+    vector_space = np.array([reduce(lambda x, y: x ^ y,
+                                    (np.array(coeffs) * vector_space_basis).tolist())
+                             for coeffs in it.product((0, 1), repeat=k)], dtype=np.int8)
+
+    # Find a particular vector in the affine subspace
+    pure_zs = xmatr_aug[k-n:, n:-1]
+    pure_zs_numeric = np.array([int(''.join(str(b) for b in bits), 2)
+                                for bits in pure_zs])
+    signs = xmatr_aug[:, -1]
+
+    # TODO Is this efficient?
+    for c in range(2**n):
+        if np.array_equiv(pure_zs_numeric ^ c, signs):
+            break
+
+    return c ^ vector_space
 
 
-def get_clifford(start_bit, end_bit, xmatr):
+def get_pauli_between_comp_states(start_bit, end_bit, xmatr):
     pass
 
 
