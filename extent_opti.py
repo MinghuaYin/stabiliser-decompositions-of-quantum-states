@@ -5,13 +5,15 @@ import numba
 import itertools as it
 import numpy as np
 
+from F2_helper import mod2ham
 from functools import reduce
 from typing import List
 
 
+# @numba.jit(nopython=True, parallel=False)
 def add_rows(a: np.ndarray, b: np.ndarray, n):
     """
-    Add one row of an augmented check matrix (b) to another row (a), 
+    Add one row of an augmented check matrix (b) to another row (a),
     dealing with the sign correctly.
 
     """
@@ -24,6 +26,7 @@ def add_rows(a: np.ndarray, b: np.ndarray, n):
     double_paulis = a_mod_4 - b_mod_4
     double_paulis[where_id] = 0
 
+    # TODO numba doesn't support unique 😭
     vals, counts = np.unique(double_paulis, return_counts=True)
 
     phase_correction = np.sum(counts[vals != 0]) // 2
@@ -35,7 +38,7 @@ def add_rows(a: np.ndarray, b: np.ndarray, n):
     return result
 
 
-@numba.jit(nopython=True, parallel=False)
+# @numba.jit(nopython=True, parallel=False)
 def rref_binary(xmatr_aug: np.ndarray):
     """
     'rref' function specifically for augmented check matrices.
@@ -68,7 +71,13 @@ def rref_binary(xmatr_aug: np.ndarray):
     return xmatr_aug
 
 
-def get_stab_support(xmatr_aug: np.ndarray) -> np.ndarray(dtype=np.int8):
+def get_stab_support(xmatr_aug: np.ndarray) -> np.ndarray:
+    """
+    Given an augmented check matrix (which uniquely determines a stab state),
+    find the support of the stab state.
+
+    """
+
     n = xmatr_aug.shape[0]
     x_part = xmatr_aug[:, :n]
     x_part = x_part[~np.all(x_part == 0, axis=1)].tolist()
@@ -88,19 +97,36 @@ def get_stab_support(xmatr_aug: np.ndarray) -> np.ndarray(dtype=np.int8):
     pure_zs = xmatr_aug[k-n:, n:-1]
     pure_zs_numeric = np.array([int(''.join(str(b) for b in bits), 2)
                                 for bits in pure_zs])
-    signs = xmatr_aug[:, -1]
+    signs = xmatr_aug[-pure_zs_numeric.shape[0]:, -1]
 
     # TODO Is this efficient?
-    # TODO Need to fix -- *inner product*, not addition
+    mod2ham_np = np.vectorize(mod2ham)
     for c in range(2**n):
-        if np.array_equiv(pure_zs_numeric ^ c, signs):
+        if np.array_equiv(mod2ham_np(c & pure_zs_numeric), signs):
             break
 
     return c ^ vector_space
 
 
-def get_pauli_between_comp_states(start_bit, end_bit, xmatr):
-    pass
+def get_pauli_between_comp_states(start_bit: int, end_bit: int,
+                                  x_part: np.ndarray) -> np.ndarray:
+    """
+    Given integers corresponding to comp basis state labels, and the 'X' part
+    of a check matrix, find a Pauli that transforms the start comp state to
+    the end comp state.
+
+    """
+
+    x_part = x_part[~np.all(x_part == 0, axis=1)]
+    num_rows, n = x_part.shape
+    start_vec = np.array(list(format(start_bit, f'0{n}b'))).astype(np.int8)
+    end_vec = np.array(list(format(end_bit, f'0{n}b'))).astype(np.int8)
+
+    for coeffs in it.product((0, 1), repeat=num_rows):
+        coeffs = np.array(coeffs, dtype=np.int8).reshape(num_rows, 1)
+        pauli = reduce(lambda r1, r2: r1 ^ r2, list(coeffs * x_part))
+        if np.array_equiv(start_vec ^ pauli, end_vec):
+            return pauli
 
 
 def get_B_col(xmatr_aug: np.ndarray):
@@ -122,13 +148,13 @@ def get_B_col(xmatr_aug: np.ndarray):
 
     i = np.argmax(xmatr_aug[0, :])
 
-    new_row = np.zeros(2*n, dtype=np.int8)
+    new_row = np.zeros(2*n + 1, dtype=np.int8)
     new_row[i + n] = 1
 
     # Find children
+    child1 = np.vstack((new_row, xmatr_aug[1:, :]))
+    new_row[-1] = 1
+    child2 = np.vstack((new_row, xmatr_aug[1:, :]))
 
-# mat = np.array([[0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0],
-#                 [0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1],
-#                 [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
-#                 [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
-#                 [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1]])
+    child1 = rref_binary(child1)
+    child2 = rref_binary(child2)
