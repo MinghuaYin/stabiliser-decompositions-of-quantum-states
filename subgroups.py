@@ -1,3 +1,5 @@
+# Copied from old project
+
 """
 This module contains functions for generating data relating to subgroups
 of the n-qubit Pauli group.

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+# Copied from old project --- see helper_functions for new code
 import pickle
 import time
 import numpy as np

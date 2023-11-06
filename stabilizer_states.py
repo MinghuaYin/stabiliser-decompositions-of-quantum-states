@@ -1,3 +1,5 @@
+# Copied from old project
+
 import math
 import numba
 import pickle
