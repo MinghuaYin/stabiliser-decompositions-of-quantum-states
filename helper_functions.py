@@ -102,13 +102,13 @@ def get_stab_support(xmatr_aug: np.ndarray) -> np.ndarray:
 
     # If support is whole of F_2^n, then we're done
     if k == n:
-        return np.array(range(2**n), dtype=np.int8)
+        return np.array(range(2**n))
 
     vector_space_basis = np.array([int(''.join(str(b) for b in bits), 2)
                                    for bits in x_part])
     vector_space = np.array([reduce(lambda x, y: x ^ y,
                                     (np.array(coeffs) * vector_space_basis).tolist())
-                             for coeffs in it.product((0, 1), repeat=k)], dtype=np.int8)
+                             for coeffs in it.product((0, 1), repeat=k)])
 
     # Find a particular vector in the affine subspace
     pure_zs = xmatr_aug[k-n:, n:-1]
@@ -126,38 +126,45 @@ def get_stab_support(xmatr_aug: np.ndarray) -> np.ndarray:
 
 
 def get_pauli_between_comp_states(start_bit: int, end_bit: int,
-                                  x_part: np.ndarray) -> np.ndarray:
+                                  xmatr_aug: np.ndarray) -> np.ndarray:
     """
-    Given integers corresponding to comp basis state labels, and the 'X' part
-    of a check matrix, find a Pauli that transforms the start comp state to
+    Given integers corresponding to comp basis state labels, 
+    and a check matrix, find a Pauli that transforms the start comp state to
     the end comp state.
 
     """
 
-    x_part = x_part[~np.all(x_part == 0, axis=1)]
-    num_rows, n = x_part.shape
+    n = xmatr_aug.shape[0]
+    x_part = xmatr_aug[:, :n]
+    xmatr_aug = xmatr_aug[~np.all(x_part == 0, axis=1)]
+    num_rows = xmatr_aug.shape[0]
+
     start_vec = np.array(list(format(start_bit, f'0{n}b'))).astype(np.int8)
     end_vec = np.array(list(format(end_bit, f'0{n}b'))).astype(np.int8)
 
     for coeffs in it.product((0, 1), repeat=num_rows):
         coeffs = np.array(coeffs, dtype=np.int8).reshape(num_rows, 1)
-        pauli = reduce(lambda r1, r2: r1 ^ r2, list(coeffs * x_part))
-        if np.array_equiv(start_vec ^ pauli, end_vec):
+        pauli = reduce(lambda r1, r2: r1 ^ r2, list(coeffs * xmatr_aug))
+        if np.array_equiv(start_vec ^ pauli[:n], end_vec):
             return pauli
 
 
 def get_B_col(xmatr_aug: np.ndarray):
     """
-    Split a state, given by an augmented check matrix, into two children.
+    Split a stab state, given by an augmented check matrix, into two children.
 
     Parameters
     ----------
     xmatr_aug : np.ndarray
-        The augmented check matrix (including signs) for the state.
+        The augmented check matrix (including signs) for the stab state.
 
     Returns
     -------
+    child1 : np.ndarray
 
+    child2 : np.ndarray
+
+    rel_phase : complex
 
     """
 
@@ -175,3 +182,22 @@ def get_B_col(xmatr_aug: np.ndarray):
 
     child1 = rref_binary(child1)
     child2 = rref_binary(child2)
+
+    # Find the 'lowest' label in each child's support. Our convention is that
+    # each stab state is normalized such that the amplitude of the component
+    # with the lowest label is real and positive
+    support1 = get_stab_support(child1)
+    support2 = get_stab_support(child2)
+    lowest_lab_1 = np.min(support1)
+    lowest_lab_2 = np.min(support2)
+
+    # Swap children if child2 has a lower lowest label than child1
+    if lowest_lab_2 > lowest_lab_1:
+        child1, child2 = child2, child1
+        support1, support2 = support2, support1
+        lowest_lab_1, lowest_lab_2 = lowest_lab_2, lowest_lab_1
+
+    # TODO Find phase
+    rel_phase = 1j
+
+    return child1, child2, rel_phase
