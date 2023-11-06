@@ -7,10 +7,24 @@ import numpy as np
 
 from F2_helper import mod2ham
 from functools import reduce
-from typing import List
 
 
-# @numba.jit(nopython=True, parallel=False)
+# https://github.com/numba/numba/issues/2884#issuecomment-382278786
+@numba.jit(nopython=True, parallel=False)
+def np_unique_impl(a):
+    b = np.sort(a.flatten())
+    unique = list(b[:1])
+    counts = [1 for _ in unique]
+    for x in b[1:]:
+        if x != unique[-1]:
+            unique.append(x)
+            counts.append(1)
+        else:
+            counts[-1] += 1
+    return np.array(unique), np.array(counts)
+
+
+@numba.jit(nopython=True, parallel=False)
 def add_rows(a: np.ndarray, b: np.ndarray, n):
     """
     Add one row of an augmented check matrix (b) to another row (a),
@@ -26,19 +40,22 @@ def add_rows(a: np.ndarray, b: np.ndarray, n):
     double_paulis = a_mod_4 - b_mod_4
     double_paulis[where_id] = 0
 
-    # TODO numba doesn't support unique 😭
-    vals, counts = np.unique(double_paulis, return_counts=True)
+    # numba doesn't support np.unique 😭
+    vals, counts = np_unique_impl(double_paulis)
 
-    phase_correction = np.sum(counts[vals != 0]) // 2
+    # phase_correction = np.sum(counts[vals != 0]) // 2
+    phase_correction = np.sum(np.where(vals != 0, counts, 0)) // 2
+    # phase_correction += np.sum(
+    #     counts[(vals == 2) | (vals == 1) | (vals == -3)])
     phase_correction += np.sum(
-        counts[(vals == 2) | (vals == 1) | (vals == -3)])
+        np.where((vals == 2) | (vals == 1) | (vals == -3), counts, 0))
 
     result = a ^ b
     result[-1] ^= phase_correction % 2
     return result
 
 
-# @numba.jit(nopython=True, parallel=False)
+@numba.jit(nopython=True, parallel=False)
 def rref_binary(xmatr_aug: np.ndarray):
     """
     'rref' function specifically for augmented check matrices.
