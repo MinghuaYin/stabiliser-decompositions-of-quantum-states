@@ -2,11 +2,13 @@
 # -*- coding: utf-8 -*-
 
 import numba
-import itertools as it
+
+import F2_helper as f2
 import numpy as np
 
-from F2_helper import mod2ham
 from functools import reduce
+from itertools import product
+from typing import List, Tuple
 
 
 # https://github.com/numba/numba/issues/2884#issuecomment-382278786
@@ -25,7 +27,7 @@ def np_unique_impl(a):
 
 
 @numba.jit(nopython=True, parallel=False)
-def add_rows(a: np.ndarray, b: np.ndarray, n):
+def add_rows(a: np.ndarray, b: np.ndarray, n: int):
     """
     Add one row of an augmented check matrix (b) to another row (a),
     dealing with the sign correctly.
@@ -97,27 +99,25 @@ def get_stab_support(xmatr_aug: np.ndarray) -> np.ndarray:
 
     n = xmatr_aug.shape[0]
     x_part = xmatr_aug[:, :n]
-    x_part = x_part[~np.all(x_part == 0, axis=1)].tolist()
-    k = len(x_part)
+    x_part = x_part[~np.all(x_part == 0, axis=1)]
+    k = x_part.shape[0]
 
     # If support is whole of F_2^n, then we're done
     if k == n:
         return np.array(range(2**n))
 
-    vector_space_basis = np.array([int(''.join(str(b) for b in bits), 2)
-                                   for bits in x_part])
+    vector_space_basis = np.array([f2.array_to_int(bits) for bits in x_part])
     vector_space = np.array([reduce(lambda x, y: x ^ y,
                                     (np.array(coeffs) * vector_space_basis).tolist())
-                             for coeffs in it.product((0, 1), repeat=k)])
+                             for coeffs in product((0, 1), repeat=k)])
 
     # Find a particular vector in the affine subspace
     pure_zs = xmatr_aug[k-n:, n:-1]
-    pure_zs_numeric = np.array([int(''.join(str(b) for b in bits), 2)
-                                for bits in pure_zs])
+    pure_zs_numeric = np.array([f2.array_to_int(bits) for bits in pure_zs])
     signs = xmatr_aug[-pure_zs_numeric.shape[0]:, -1]
 
     # TODO Is this efficient?
-    mod2ham_np = np.vectorize(mod2ham)
+    mod2ham_np = np.vectorize(f2.mod2ham)
     for c in range(2**n):
         if np.array_equiv(mod2ham_np(c & pure_zs_numeric), signs):
             break
@@ -139,17 +139,18 @@ def get_pauli_between_comp_states(start_bit: int, end_bit: int,
     xmatr_aug = xmatr_aug[~np.all(x_part == 0, axis=1)]
     num_rows = xmatr_aug.shape[0]
 
-    start_vec = np.array(list(format(start_bit, f'0{n}b'))).astype(np.int8)
-    end_vec = np.array(list(format(end_bit, f'0{n}b'))).astype(np.int8)
+    start_vec = f2.int_to_array(start_bit, n)
+    end_vec = f2.int_to_array(end_bit, n)
 
-    for coeffs in it.product((0, 1), repeat=num_rows):
+    for coeffs in product((0, 1), repeat=num_rows):
         coeffs = np.array(coeffs, dtype=np.int8).reshape(num_rows, 1)
-        pauli = reduce(lambda r1, r2: r1 ^ r2, list(coeffs * xmatr_aug))
+        pauli = reduce(lambda r1, r2: add_rows(r1, r2, n),
+                       list(coeffs * xmatr_aug))
         if np.array_equiv(start_vec ^ pauli[:n], end_vec):
             return pauli
 
 
-def get_B_col(xmatr_aug: np.ndarray):
+def get_children(xmatr_aug: np.ndarray) -> Tuple[np.ndarray, np.ndarray, complex]:
     """
     Split a stab state, given by an augmented check matrix, into two children.
 
@@ -192,12 +193,33 @@ def get_B_col(xmatr_aug: np.ndarray):
     lowest_lab_2 = np.min(support2)
 
     # Swap children if child2 has a lower lowest label than child1
-    if lowest_lab_2 > lowest_lab_1:
+    if lowest_lab_2 < lowest_lab_1:
         child1, child2 = child2, child1
         support1, support2 = support2, support1
         lowest_lab_1, lowest_lab_2 = lowest_lab_2, lowest_lab_1
 
-    # TODO Find phase
-    rel_phase = 1j
+    # Find phase
+    pauli = get_pauli_between_comp_states(lowest_lab_1, lowest_lab_2,
+                                          xmatr_aug)
+    # Get '-1 contributions' from Z part
+    z_part = pauli[n:-1]
+    rel_phase = f2.sign_mod2product(lowest_lab_1, f2.array_to_int(z_part))
+
+    # Get 'i' contributions from Y's
+    x_part = pauli[:n]
+    powers_of_i = (1, 1j, -1, -1j)
+    y_is_there = np.where(x_part + z_part == 2, 1, 0)
+    rel_phase *= powers_of_i[np.sum(y_is_there) % 4]
 
     return child1, child2, rel_phase
+
+
+def get_B(xmatr_aug_list: List[np.ndarray]) -> np.ndarray:
+    """
+    Get a basis of triples in matrix form given a list of
+    augmented check matrices that have been ordered by increasing support size.
+
+    """
+
+    # TODO Sparse matrices?
+    pass

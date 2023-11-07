@@ -51,3 +51,11 @@ def get_vector_expansion(dimension: int, basis_vectors: list[int], coefficients:
     terms = [get_bit_at(coefficients, j)*basis_vectors[j]
              for j in range(dimension)]
     return functools.reduce(lambda x, y: x ^ y, terms, 0)
+
+
+def array_to_int(array: np.ndarray) -> int:
+    return int(''.join(str(b) for b in array.tolist()), 2)
+
+
+def int_to_array(numeric: int, n: int) -> np.ndarray:
+    return np.array(list(format(numeric, f'0{n}b'))).astype(np.int8)
