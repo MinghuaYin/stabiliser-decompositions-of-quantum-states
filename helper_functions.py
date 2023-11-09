@@ -231,17 +231,14 @@ def get_B(xmatr_aug_list: List[np.ndarray], n: int) -> spr.csc_array:
 
     """
 
-    # B = np.zeros((len(xmatr_aug_list), len(xmatr_aug_list) - (1 << n)),
-    #              dtype=np.complex64)
-
     B = spr.dok_array((len(xmatr_aug_list), len(xmatr_aug_list) - (1 << n)),
-                      dtype=np.complex64)
+                      dtype=complex)
 
     hash_map = dict((str(mat), i) for i, mat in
                     enumerate(xmatr_aug_list[: 1 << n]))
 
     for col_num, xmatr_aug in enumerate(xmatr_aug_list[1 << n:]):
-        if col_num % 10_000 == 0:
+        if col_num % 100_000 == 0:
             print(col_num)
 
         # Hash all the augmented check matrices as we go through them
@@ -276,9 +273,7 @@ def main(n):
 
 if __name__ == '__main__':
     start = time.perf_counter()
-    n = 5
+    n = 4
     B = main(n)
-    # old_B = np.loadtxt(f'data/{n}_qubit_B.csv',
-    #                    dtype=np.complex64, delimiter=',')
     spr.save_npz(f'data/{n}_qubit_B', B)
     print(f'Time elapsed: {time.perf_counter() - start}')

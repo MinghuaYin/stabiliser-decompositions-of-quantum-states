@@ -1,22 +1,46 @@
 import math
+import time
+
 import cvxpy as cp
 import numpy as np
+import scipy.sparse as spr
 
-B = np.array([[1, 1, -1.414213562, 0, 0, 0],
-              [1, -1, 0, -1.414213562, 0, 0],
-              [1, 1j, 0, 0, -1.414213562, 0],
-              [1, -1j, 0, 0, 0, -1.414213562]]).T
 
-c = np.array([0.707106781, 0.5 + 0.5j, 0, 0, 0, 0])
+def ham(n: int) -> int:
+    weight = 0
 
-x_l1 = cp.Variable(4, complex=True)
+    while n:
+        weight += 1
+        n &= n - 1
 
-obj = cp.Minimize(cp.norm(B@x_l1 + c, 1)**2)
+    return weight
 
-prob = cp.Problem(obj)
-solution = prob.solve()
-print(f"status: {prob.status}")
 
-print(f"optimal objective value: {obj.value}")
-print(repr(x_l1.value))
-print(f'{4/(2 + math.sqrt(2)) = }')
+def optimize_stab_extent_T(n: int):
+    # B = np.loadtxt('data/1_qubit_B.csv', dtype=complex, delimiter=',')
+    B = spr.load_npz(f'data/{n}_qubit_B.npz')
+    num_stab_states, num_non_comp_stab_states = B.shape
+
+    exp_pi_i_over_4 = 1/math.sqrt(2) * (1 + 1j)
+    c = np.zeros(num_stab_states, dtype=complex)
+    c[:2**n] = 1/2**(n/2) * np.array([exp_pi_i_over_4 ** ham(i)
+                                      for i in range(2**n)], dtype=complex)
+
+    x_l1 = cp.Variable(num_non_comp_stab_states, complex=True)
+
+    obj = cp.Minimize(cp.norm(B @ x_l1 + c, 1)**2)
+
+    prob = cp.Problem(obj)
+    solution = prob.solve()
+    print(f"status: {prob.status}")
+
+    print(f"optimal objective value: {obj.value}")
+    # print(repr(x_l1.value))
+    print(f'{(4/(2 + math.sqrt(2)))**n = }')
+
+    return B, obj.value, x_l1.value
+
+
+if __name__ == '__main__':
+    # B_old = np.loadtxt('data/1_qubit_B.csv', dtype=complex, delimiter=',')
+    B, optimal_val, x = optimize_stab_extent_T(3)
