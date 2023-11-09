@@ -1,3 +1,15 @@
+n = 1:
+len(xmatr_list) = 3
+Time elapsed: 1.202966662000108
+
+n = 2:
+len(xmatr_list) = 15
+Time elapsed: 1.2307839530003548
+
+n = 3:
+len(xmatr_list) = 135
+Time elapsed: 1.5807612749995315
+
 n = 4:
 len(xmatr_list) = 2295
 Time elapsed: 17.626034931001413
