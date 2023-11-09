@@ -224,14 +224,12 @@ def get_children(xmatr_aug: np.ndarray) -> Tuple[np.ndarray, np.ndarray, complex
     return child1, child2, rel_phase
 
 
-def get_B(xmatr_aug_list: List[np.ndarray], n: int) -> np.ndarray:
+def get_B(xmatr_aug_list: List[np.ndarray], n: int) -> spr.csc_array:
     """
     Get a basis of triples in matrix form given a list of
     augmented check matrices that have been ordered by increasing support size.
 
     """
-
-    # TODO Use sparse matrices instead, and maybe a different element type?
 
     # B = np.zeros((len(xmatr_aug_list), len(xmatr_aug_list) - (1 << n)),
     #              dtype=np.complex64)
@@ -257,7 +255,7 @@ def get_B(xmatr_aug_list: List[np.ndarray], n: int) -> np.ndarray:
         B[child2_index, col_num] = rel_phase
         B[col_num + (1 << n), col_num] = -math.sqrt(2)
 
-    return B
+    return B.tocsc()
 
 
 def main(n):
