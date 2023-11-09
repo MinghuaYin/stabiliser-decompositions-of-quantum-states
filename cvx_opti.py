@@ -2,16 +2,16 @@ import math
 import cvxpy as cp
 import numpy as np
 
-A = np.array([[1, 1, -1.414213562, 0, 0, 0],
+B = np.array([[1, 1, -1.414213562, 0, 0, 0],
               [1, -1, 0, -1.414213562, 0, 0],
               [1, 1j, 0, 0, -1.414213562, 0],
               [1, -1j, 0, 0, 0, -1.414213562]]).T
 
-b = np.array([1, 0.707106781 + 0.707106781j, 0, 0, 0, 0])
+c = np.array([0.707106781, 0.5 + 0.5j, 0, 0, 0, 0])
 
 x_l1 = cp.Variable(4, complex=True)
 
-obj = cp.Minimize(cp.norm(A@x_l1 + b, 1))
+obj = cp.Minimize(cp.norm(B@x_l1 + c, 1)**2)
 
 prob = cp.Problem(obj)
 solution = prob.solve()
