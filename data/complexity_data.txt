@@ -1,0 +1,3 @@
+n = 4
+len(xmatr_list) = 2295
+Time elapsed: 17.626034931001413

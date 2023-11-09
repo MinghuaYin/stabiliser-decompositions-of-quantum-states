@@ -1,3 +1,5 @@
+# Copied from old project
+
 """
 This module contains functions for generating data relating to subgroups
 of the n-qubit Pauli group.
@@ -20,9 +22,8 @@ import numpy as np
 # O_shared = None
 # Lambda_shared = None
 
-# TODO Are these global variables slowing down the program?
-O = None
-Lambda = None
+# O = None
+# Lambda = None
 
 
 def np_block(X):
@@ -81,37 +82,39 @@ def binary_matrix_rank(A):
 # TODO Can we get the rank more efficiently?
 # parallel speeds up computation only over very large matrices
 # @numba.jit(nopython=True, parallel=False)
-def gf2elim(M):
-    """
-    N.B. This method *changes* the matrix M!
+# def gf2elim(M):
+#     """
+#     N.B. This method *changes* the matrix M!
 
-    """
+#     """
 
-    m, n = M.shape
-    i = 0
-    j = 0
-    # rank = 0
+#     m, n = M.shape
+#     i = 0
+#     j = 0
+#     # rank = 0
 
-    while i < m and j < n:
-        # Find the row with the next leading 1
-        k = np.argmax(M[i:, j]) + i
-        temp = np.copy(M[k])
-        # Move this row into position via a swap
-        M[k] = M[i]
-        M[i] = temp
-        aijn = M[i, j:]
-        # make a copy otherwise M will be directly affected
-        col = np.copy(M[:, j])
-        col[i] = 0  # avoid xoring pivot row with itself
-        flip = np.outer(col, aijn)
-        M[:, j:] = M[:, j:] ^ flip
-        i += 1
-        j += 1
-        # rank += 1
+#     while i < m and j < n:
+#         # Find the row with the next leading 1
+#         k = np.argmax(M[i:, j]) + i
+#         temp = np.copy(M[k])
+#         # Move this row into position via a swap
+#         M[k] = M[i]
+#         M[i] = temp
+#         aijn = M[i, j:]
+#         # make a copy otherwise M will be directly affected
+#         col = np.copy(M[:, j])
+#         col[i] = 0  # avoid xoring pivot row with itself
+#         flip = np.outer(col, aijn)
+#         M[:, j:] = M[:, j:] ^ flip
+#         i += 1
+#         j += 1
+#         # rank += 1
 
-    return M
+#     return M
 
 
+# TODO Rewrite for greater efficiency
+# @numba.jit(nopython=False, parallel=False, forceobj=True)
 def get_rref_matrices(num_rows, rows=None):
     """
     Generator that finds all the n by 2n reduced row echelon form matrices
@@ -134,8 +137,10 @@ def get_rref_matrices(num_rows, rows=None):
 
     """
 
-    current_num_rows, num_cols = (0, 2*num_rows) \
-        if rows is None else rows.shape
+    if rows is None:
+        current_num_rows, num_cols = (0, 2*num_rows)
+    else:
+        current_num_rows, num_cols = rows.shape
     if current_num_rows == num_rows:
         yield rows
     # if current_num_rows > num_rows:
@@ -144,31 +149,38 @@ def get_rref_matrices(num_rows, rows=None):
     rref_mats_temp = []
 
     # Find the index of the column containing the last row's leading 1
-    start_col = -1 if rows is None else list(rows[-1, :]).index(1)
+    # list(rows[-1, :]).index(1)
+    if rows is None:
+        start_col = -1
+    else:
+        start_col = np.argmax(rows[-1, :])
 
     # Consider all prototype extra rows
-    for extra_row in \
-        it.islice(it.product((0, 1), repeat=num_cols - start_col - 1),
-                  1, None):
+    for extra_row_numeric in range(1, 1 << (num_cols - start_col - 1)):
+        extra_row = list(
+            format(extra_row_numeric, f'0{num_cols - start_col - 1}b'))
 
-        extra_row = np.array(tuple(0 for _ in range(start_col + 1))
+        extra_row = np.array([0 for _ in range(start_col + 1)]
                              + extra_row, dtype=np.int8)
 
         if rows is None:
-            rref_mats_temp.append(extra_row.reshape(1, num_cols))
+            rref_mats_temp.append(extra_row.reshape((1, num_cols)))
         else:
             # Check if this extra row's leading 1 is in a column
             # without any other 1s; if so, add it to the matrix!
-            leading_col = list(extra_row).index(1)
+            leading_col = np.argmax(extra_row)
             if np.sum(rows[:, leading_col]) == 0:
-                rref_mats_temp.append(np.vstack((rows, extra_row)))
+                rref_mats_temp.append(
+                    np.vstack((rows, extra_row.reshape((1, num_cols)))))
 
     # Recursively run the function until enough rows have been added
     if current_num_rows == num_rows - 1:
-        yield from rref_mats_temp
+        for mat in rref_mats_temp:
+            yield mat
     elif current_num_rows < num_rows - 1:
         for new_rows in rref_mats_temp:
-            yield from get_rref_matrices(num_rows, new_rows)
+            for mat in get_rref_matrices(num_rows, new_rows):
+                yield mat
 
 
 def check_independent(check_matrix):
@@ -229,10 +241,10 @@ def check_commute(check_matrix):
 
     n = check_matrix.shape[0]
 
-    # Define the block matrix big_lambda
-    # I = np.eye(n, dtype=np.int8)
-    # O = np.zeros((n, n), dtype=np.int8)
-    # Lambda = np_block(((O, I), (-I, O)))
+    # Define the block matrix Lambda
+    I = np.eye(n, dtype=np.int8)
+    O = np.zeros((n, n), dtype=np.int8)
+    Lambda = np_block(((O, I), (-I, O)))
 
     # O = to_numpy_array(O_shared, n, n)
     # Lambda = to_numpy_array(Lambda_shared, 2*n, 2*n)
@@ -319,7 +331,7 @@ def get_max_abelian_subgroups(n):
     """
 
     # global O_shared, Lambda_shared
-    global O, Lambda
+    # global O, Lambda
 
     start_time = time.perf_counter()
 
@@ -331,24 +343,30 @@ def get_max_abelian_subgroups(n):
     # O_shared = mp.Array(ctypes.c_int8, n**2)
     # O = to_numpy_array(O_shared, n, n)
     # O[:] = np.zeros((n, n))
-    O = np.zeros((n, n))
+    # O = np.zeros((n, n))
 
     # Lambda_shared = mp.Array(ctypes.c_int8, 4 * n**2)
     # Lambda = to_numpy_array(Lambda_shared, 2*n, 2*n)
     # Lambda[:] = np_block(((O, I), (-I, O)))
-    Lambda = np_block(((O, I), (-I, O)))
+    # Lambda = np_block(((O, I), (-I, O)))
 
     # Consider every single n by 2n check matrix in reduced row echelon form,
     # and add to the list of subgroups if the generators
     # commute and are independent
     # with mp.Pool(initializer=init_shared_arrays,
     #              initargs=(O_shared, Lambda_shared)) as pool, \
-    with mp.Pool() as pool, \
-            open(f'data/{n}_qubit_subgroups_a.data', 'ab') as writer:
-        results = pool.imap(
+    # with mp.Pool() as pool, \
+    #         open(f'data/{n}_qubit_subgroups_a.data', 'ab') as writer:
+    with open(f'data/{n}_qubit_subgroups_a.data', 'ab') as writer:
+        # results = pool.imap(
+        #     check_valid,
+        #     enumerate(get_rref_matrices(n)),
+        #     chunksize=10
+        # )
+
+        results = map(
             check_valid,
-            enumerate(get_rref_matrices(n)),
-            chunksize=10
+            enumerate(get_rref_matrices(n))
         )
 
         for item in results:
@@ -366,4 +384,5 @@ def get_max_abelian_subgroups(n):
 
 
 if __name__ == '__main__':
-    subgroups = get_max_abelian_subgroups(6)
+    subgroups = get_max_abelian_subgroups(4)
+    # test_gen = get_rref_matrices(6)
