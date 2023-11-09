@@ -1,3 +1,7 @@
-n = 4
+n = 4:
 len(xmatr_list) = 2295
 Time elapsed: 17.626034931001413
+
+n = 5:
+len(xmatr_list) = 75735
+Time elapsed: 1603.0069584050016
