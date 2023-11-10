@@ -32,7 +32,7 @@ def optimize_stab_extent_T(n: int, print_output=False):
     obj = cp.Minimize(cp.norm(B @ x_l1 + c, 1)**2)
 
     prob = cp.Problem(obj)
-    solution = prob.solve()
+    solution = prob.solve()  # TODO Is ECOS the best?
 
     if print_output:
         print(f"status: {prob.status}")
@@ -46,8 +46,9 @@ def optimize_stab_extent_T(n: int, print_output=False):
 
 if __name__ == '__main__':
     # B_old = np.loadtxt('data/1_qubit_B.csv', dtype=complex, delimiter=',')
-    B = spr.load_npz('data/5_qubit_B.npz')
+    # B = spr.load_npz('data/5_qubit_B.npz')
 
+    n = 5
     start = time.perf_counter()
-    B, optimal_val, x = optimize_stab_extent_T(5, True)
+    B, optimal_val, x = optimize_stab_extent_T(n, True)
     print(f'Time elapsed: {time.perf_counter() - start}')
