@@ -273,7 +273,7 @@ def main(n):
 
 if __name__ == '__main__':
     start = time.perf_counter()
-    n = 4
+    n = 5
     B = main(n)
     spr.save_npz(f'data/{n}_qubit_B', B)
     print(f'Time elapsed: {time.perf_counter() - start}')
