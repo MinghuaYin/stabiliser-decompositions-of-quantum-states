@@ -30,6 +30,7 @@ def np_unique_impl(a):
     return np.array(unique), np.array(counts)
 
 
+# TODO Rephrase things in terms of dot products?
 @numba.jit(nopython=True, parallel=False)
 def add_rows(a: np.ndarray, b: np.ndarray, n: int):
     """

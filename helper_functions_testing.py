@@ -39,16 +39,20 @@ def test_shift(n):
         1 << n
 
 
-if __name__ == '__main__':
-    # start = time.perf_counter()
-    # test_power(6)
-    # print(f'Time elapsed: {time.perf_counter() - start}')
+def test_rref_binary():
+    xmatr_aug = np.array([[0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1],
+                          [0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0],
+                          [0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0],
+                          [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1],
+                          [1, 0, 1, 1, 0, 0, 0, 1, 0, 0, 1]], dtype=np.int8)
+    hf.rref_binary(xmatr_aug)
 
-    # start = time.perf_counter()
-    # # test_get_rref_matrices(6, 5)
-    # test_shift(6)
-    # print(f'Time elapsed: {time.perf_counter() - start}')
 
+def test(function, args):
     start = time.perf_counter()
-    test_get_rref_matrices(6, 5)
+    function(*args)
     print(f'Time elapsed: {time.perf_counter() - start}')
+
+
+if __name__ == '__main__':
+    test(test_rref_binary, [])

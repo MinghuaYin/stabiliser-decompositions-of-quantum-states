@@ -19,11 +19,7 @@ import itertools as it
 import multiprocessing as mp
 import numpy as np
 
-# O_shared = None
-# Lambda_shared = None
-
-# O = None
-# Lambda = None
+from typing import Sequence
 
 
 def np_block(X):
@@ -161,7 +157,7 @@ def get_rref_matrices(num_rows, rows=None):
             format(extra_row_numeric, f'0{num_cols - start_col - 1}b'))
 
         extra_row = np.array([0 for _ in range(start_col + 1)]
-                             + extra_row, dtype=np.int8)
+                              + extra_row, dtype=np.int8)
 
         if rows is None:
             rref_mats_temp.append(extra_row.reshape((1, num_cols)))
@@ -183,33 +179,24 @@ def get_rref_matrices(num_rows, rows=None):
                 yield mat
 
 
-def check_independent(check_matrix):
-    """
-    Checks whether the generators, given by the check matrix
-    check_matrix, are independent.
+def powerset(iterable):
+    "powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"
+    s = list(iterable)
+    return it.chain.from_iterable(it.combinations(s, r) for r in range(len(s)+1))
 
-    We use the fact that the generators are independent iff the
-    check vectors are linearly independent.
 
-    Parameters
-    ----------
-    check_matrix : numpy.ndarray
+# def get_rref_matrices(num_rows, leading_one_positions: Sequence[int]):
+#     template = np.zeroes((num_rows, 2*num_rows), dtype=np.int8)
 
-    Returns
-    -------
-    independent : bool
-        Whether or not the generators are independent.
+#     valid_positions = []
 
-    """
+#     for i, pos in enumerate(leading_one_positions):
+#         template[i, pos] = 1
+#         vps = set(range(pos + 1, 2*num_rows)).difference(leading_one_positions)
+#         valid_positions.append(vps)
 
-    n = check_matrix.shape[0]
-
-    # For n = 1,2, the sets of generators are always independent
-    # due to how we create them
-    if n == 1 or n == 2:
-        return True
-
-    return binary_matrix_rank(check_matrix.copy()) == n  # TODO
+#     all_combinations = (powerset(vps) for vps in valid_positions)
+#     for choice in it.product()
 
 
 def check_commute(check_matrix):
@@ -298,18 +285,6 @@ def check_valid(args):
     if check_commute(check_matrix):
         return check_matrix
     return None
-
-
-# Some functions that allow numpy arrays to be shared between processes
-
-def to_numpy_array(mp_arr, num_rows, num_cols):
-    return np.frombuffer(mp_arr.get_obj()).reshape(num_rows, num_cols)
-
-
-def init_shared_arrays(O_shared_, Lambda_shared_):
-    global O_shared, Lambda_shared
-    O_shared = O_shared_
-    Lambda_shared = Lambda_shared_
 
 
 # The main function
