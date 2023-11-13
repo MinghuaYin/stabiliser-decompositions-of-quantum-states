@@ -11,7 +11,6 @@ corresponds to the element's check vector. Hence we represent an
 element of the Pauli group (ignoring the phase) as a vector in F_2^(2n).
 """
 
-import ctypes
 import numba
 import pickle
 import time
@@ -19,7 +18,7 @@ import itertools as it
 import multiprocessing as mp
 import numpy as np
 
-from typing import Sequence
+from typing import Iterator, Sequence
 
 
 def np_block(X):
@@ -28,175 +27,123 @@ def np_block(X):
     return np.vstack((xtmp1, xtmp2))
 
 
-def binary_matrix_rank(A):
-    """
-    Finds the rank of the binary matrix A by effectively converting it
-    into row echelon form.
+# ***** EDIT THIS BEFORE RUNNING *****
+n = 6
 
-    Parameters
-    ----------
-    A : numpy.ndarray
-
-    N.B. This method *changes* the matrix A!
-
-    Returns
-    -------
-    rank : int
-        The rank of matrix A.
-
-    """
-
-    num_rows, num_cols = A.shape
-    rank = 0
-
-    for j in range(num_cols):
-        # Find the number of rows that have a 1 in the jth column
-        rows = []
-        for i in range(num_rows):
-            if A[i, j] == 1:
-                rows.append(i)
-
-        # If the jth column has more than one 1, use row addition to
-        # remove all 1s except the first one, then remove the first
-        # such row and increase the rank by 1
-        if len(rows) >= 1:
-            for c in range(1, len(rows)):
-                A[rows[c], :] = (A[rows[c], :] + A[rows[0], :]) % 2
-
-            A = np.delete(A, rows[0], 0)
-            num_rows -= 1
-            rank += 1
-
-    # For each remaining non-zero row in A, increase the rank by 1
-    for row in A:
-        if sum(row) > 0:
-            rank += 1
-
-    return rank
-
-
-# TODO Can we get the rank more efficiently?
-# parallel speeds up computation only over very large matrices
-# @numba.jit(nopython=True, parallel=False)
-# def gf2elim(M):
-#     """
-#     N.B. This method *changes* the matrix M!
-
-#     """
-
-#     m, n = M.shape
-#     i = 0
-#     j = 0
-#     # rank = 0
-
-#     while i < m and j < n:
-#         # Find the row with the next leading 1
-#         k = np.argmax(M[i:, j]) + i
-#         temp = np.copy(M[k])
-#         # Move this row into position via a swap
-#         M[k] = M[i]
-#         M[i] = temp
-#         aijn = M[i, j:]
-#         # make a copy otherwise M will be directly affected
-#         col = np.copy(M[:, j])
-#         col[i] = 0  # avoid xoring pivot row with itself
-#         flip = np.outer(col, aijn)
-#         M[:, j:] = M[:, j:] ^ flip
-#         i += 1
-#         j += 1
-#         # rank += 1
-
-#     return M
+O = np.zeros((n, n), dtype=np.int8)
+I = np.eye(n, dtype=np.int8)
+Lambda = np_block(((O, I), (-I, O)))
 
 
 # TODO Rewrite for greater efficiency
 # @numba.jit(nopython=False, parallel=False, forceobj=True)
-def get_rref_matrices(num_rows, rows=None):
-    """
-    Generator that finds all the n by 2n reduced row echelon form matrices
-    (with no zero rows) with the specified number of rows.
+# def get_rref_matrices(num_rows, rows=None):
+#     """
+#     Generator that finds all the n by 2n reduced row echelon form matrices
+#     (with no zero rows) with the specified number of rows.
 
-    Note that, by construction, the rows of these matrices are
-    linearly independent.
+#     Note that, by construction, the rows of these matrices are
+#     linearly independent.
 
-    Parameters
-    ----------
-    num_rows : int
-        The number of rows that the rref matrices are to have.
-    rows : numpy.ndarray, optional
-        Any rows (in rref) that have already been generated.
+#     Parameters
+#     ----------
+#     num_rows : int
+#         The number of rows that the rref matrices are to have.
+#     rows : numpy.ndarray, optional
+#         Any rows (in rref) that have already been generated.
 
-    Yields
-    ------
-    rref_mat : numpy.ndarray
-        The next rref matrix.
+#     Yields
+#     ------
+#     rref_mat : numpy.ndarray
+#         The next rref matrix.
 
-    """
+#     """
 
-    if rows is None:
-        current_num_rows, num_cols = (0, 2*num_rows)
-    else:
-        current_num_rows, num_cols = rows.shape
-    if current_num_rows == num_rows:
-        yield rows
-    # if current_num_rows > num_rows:
-    #     raise ValueError
+#     if rows is None:
+#         current_num_rows, num_cols = (0, 2*num_rows)
+#     else:
+#         current_num_rows, num_cols = rows.shape
+#     if current_num_rows == num_rows:
+#         yield rows
+#     # if current_num_rows > num_rows:
+#     #     raise ValueError
 
-    rref_mats_temp = []
+#     rref_mats_temp = []
 
-    # Find the index of the column containing the last row's leading 1
-    # list(rows[-1, :]).index(1)
-    if rows is None:
-        start_col = -1
-    else:
-        start_col = np.argmax(rows[-1, :])
+#     # Find the index of the column containing the last row's leading 1
+#     # list(rows[-1, :]).index(1)
+#     if rows is None:
+#         start_col = -1
+#     else:
+#         start_col = np.argmax(rows[-1, :])
 
-    # Consider all prototype extra rows
-    for extra_row_numeric in range(1, 1 << (num_cols - start_col - 1)):
-        extra_row = list(
-            format(extra_row_numeric, f'0{num_cols - start_col - 1}b'))
+#     # Consider all prototype extra rows
+#     for extra_row_numeric in range(1, 1 << (num_cols - start_col - 1)):
+#         extra_row = list(
+#             format(extra_row_numeric, f'0{num_cols - start_col - 1}b'))
 
-        extra_row = np.array([0 for _ in range(start_col + 1)]
-                              + extra_row, dtype=np.int8)
+#         extra_row = np.array([0 for _ in range(start_col + 1)]
+#                               + extra_row, dtype=np.int8)
 
-        if rows is None:
-            rref_mats_temp.append(extra_row.reshape((1, num_cols)))
-        else:
-            # Check if this extra row's leading 1 is in a column
-            # without any other 1s; if so, add it to the matrix!
-            leading_col = np.argmax(extra_row)
-            if np.sum(rows[:, leading_col]) == 0:
-                rref_mats_temp.append(
-                    np.vstack((rows, extra_row.reshape((1, num_cols)))))
+#         if rows is None:
+#             rref_mats_temp.append(extra_row.reshape((1, num_cols)))
+#         else:
+#             # Check if this extra row's leading 1 is in a column
+#             # without any other 1s; if so, add it to the matrix!
+#             leading_col = np.argmax(extra_row)
+#             if np.sum(rows[:, leading_col]) == 0:
+#                 rref_mats_temp.append(
+#                     np.vstack((rows, extra_row.reshape((1, num_cols)))))
 
-    # Recursively run the function until enough rows have been added
-    if current_num_rows == num_rows - 1:
-        for mat in rref_mats_temp:
-            yield mat
-    elif current_num_rows < num_rows - 1:
-        for new_rows in rref_mats_temp:
-            for mat in get_rref_matrices(num_rows, new_rows):
-                yield mat
+#     # Recursively run the function until enough rows have been added
+#     if current_num_rows == num_rows - 1:
+#         for mat in rref_mats_temp:
+#             yield mat
+#     elif current_num_rows < num_rows - 1:
+#         for new_rows in rref_mats_temp:
+#             for mat in get_rref_matrices(num_rows, new_rows):
+#                 yield mat
 
 
-def powerset(iterable):
+def powerset(iterable) -> Iterator:
     "powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"
     s = list(iterable)
     return it.chain.from_iterable(it.combinations(s, r) for r in range(len(s)+1))
 
 
-# def get_rref_matrices(num_rows, leading_one_positions: Sequence[int]):
-#     template = np.zeroes((num_rows, 2*num_rows), dtype=np.int8)
+def get_rref_matrices(leading_one_positions: Sequence[int]) -> Iterator[np.ndarray]:
+    template = np.zeros((n, 2*n), dtype=np.int8)
 
-#     valid_positions = []
+    valid_positions = []
 
-#     for i, pos in enumerate(leading_one_positions):
-#         template[i, pos] = 1
-#         vps = set(range(pos + 1, 2*num_rows)).difference(leading_one_positions)
-#         valid_positions.append(vps)
+    for i, pos in enumerate(leading_one_positions):
+        template[i, pos] = 1
+        vps = set(range(pos + 1, 2*n)).difference(leading_one_positions)
+        valid_positions.append(vps)
 
-#     all_combinations = (powerset(vps) for vps in valid_positions)
-#     for choice in it.product()
+    all_combinations = (powerset(vps) for vps in valid_positions)
+    for choice in it.product(*all_combinations):
+        matrix = np.copy(template)
+        for i, positions in enumerate(choice):
+            matrix[i, positions] = 1
+        yield matrix
+
+
+def dot_py(A, B):
+    m, n = A.shape
+    p = B.shape[1]
+
+    C = np.zeros((m, p), dtype=np.int8)
+
+    for i in range(0, m):
+        for j in range(0, p):
+            for k in range(0, n):
+                C[i, j] += A[i, k]*B[k, j]
+    return C
+
+
+dot_nb = numba.jit(numba.int8[:, :](
+    numba.int8[:, :], numba.int8[:, :]), nopython=True)(dot_py)
 
 
 def check_commute(check_matrix):
@@ -213,11 +160,11 @@ def check_commute(check_matrix):
     (i.e. check_matrix) and
 
     .. math::
-        \Lambda = \\begin{pmatrix} 0 & I \\\ -I & 0 \end{pmatrix}.
+        \Lambda = \\begin{pmatrix} 0 & I \\\ I & 0 \end{pmatrix}.
 
     Parameters
     ----------
-    check_matrix : numpy.ndarray
+    check_matrix : np.ndarray
 
     Returns
     -------
@@ -226,69 +173,46 @@ def check_commute(check_matrix):
 
     """
 
-    n = check_matrix.shape[0]
+    intermediate = dot_nb(check_matrix, Lambda)
+    prod = dot_nb(intermediate, check_matrix.T)
 
-    # Define the block matrix Lambda
-    I = np.eye(n, dtype=np.int8)
-    O = np.zeros((n, n), dtype=np.int8)
-    Lambda = np_block(((O, I), (-I, O)))
-
-    # O = to_numpy_array(O_shared, n, n)
-    # Lambda = to_numpy_array(Lambda_shared, 2*n, 2*n)
-
-    m1 = check_matrix
-    m2 = check_matrix.T
-    tt = np.dot(m1, np.dot(Lambda, m2))
-
-    return np.array_equal(
-        # (check_matrix @ Lambda @ check_matrix.T) % 2, O
-        tt % 2, O
-    )
+    return np.array_equiv(prod % 2, O)
 
 
-def check_valid(args):
+def get_check_matrices(leading_one_positions):
     """
-    Checks if the check matrix represents a valid set of generators
-    for a maximal abelian subgroup of the n-qubit Pauli group.
 
     Parameters
     ----------
-    args : tuple
-        Contains the following elements:
-
-        index : int, optional
-
-        check_matrix : numpy.ndarray
+    leading_one_positions : Sequence[int]
 
     Returns
     -------
     None
         If the check matrix is not valid.
-    check_matrix : numpy.ndarray
+    check_matrix : np.ndarray
         check_matrix if it is valid.
 
     """
 
-    if len(args) == 1:
-        check_matrix = args[0]
-    elif len(args) == 2:
-        index, check_matrix = args
+    print(f'Begin looking with {leading_one_positions = }')
 
-    # For testing
-    if index % 10000 == 0:
-        print(
-            f'The check matrix that is being tested is\n'
-            f'{check_matrix}'
-        )
+    good_ones = []
 
-    # with O_shared.get_lock(), Lambda_shared.get_lock():
-    if check_commute(check_matrix):
-        return check_matrix
-    return None
+    for index, mat in enumerate(get_rref_matrices(leading_one_positions)):
+        # if index % 1_000_000 == 0:
+        #     print(f'Testing\n{mat}')
+
+        if check_commute(mat):
+            good_ones.append(mat)
+
+    print(f'Finish looking with {leading_one_positions = }')
+
+    return good_ones
 
 
 # The main function
-def get_max_abelian_subgroups(n):
+def get_max_abelian_subgroups():
     """
     Finds the maximal abelian subgroups of the n-qubit Pauli group,
     ignoring the phase of each generator.
@@ -305,51 +229,28 @@ def get_max_abelian_subgroups(n):
 
     """
 
-    # global O_shared, Lambda_shared
-    # global O, Lambda
-
     start_time = time.perf_counter()
 
     subgroups = []
 
-    # Define the block matrix big_lambda (and associated matrices)
-    I = np.eye(n)
-
-    # O_shared = mp.Array(ctypes.c_int8, n**2)
-    # O = to_numpy_array(O_shared, n, n)
-    # O[:] = np.zeros((n, n))
-    # O = np.zeros((n, n))
-
-    # Lambda_shared = mp.Array(ctypes.c_int8, 4 * n**2)
-    # Lambda = to_numpy_array(Lambda_shared, 2*n, 2*n)
-    # Lambda[:] = np_block(((O, I), (-I, O)))
-    # Lambda = np_block(((O, I), (-I, O)))
-
-    # Consider every single n by 2n check matrix in reduced row echelon form,
-    # and add to the list of subgroups if the generators
-    # commute and are independent
-    # with mp.Pool(initializer=init_shared_arrays,
-    #              initargs=(O_shared, Lambda_shared)) as pool, \
-    # with mp.Pool() as pool, \
-    #         open(f'data/{n}_qubit_subgroups_a.data', 'ab') as writer:
-    with open(f'data/{n}_qubit_subgroups_a.data', 'ab') as writer:
-        # results = pool.imap(
-        #     check_valid,
-        #     enumerate(get_rref_matrices(n)),
-        #     chunksize=10
-        # )
-
-        results = map(
-            check_valid,
-            enumerate(get_rref_matrices(n))
+    with mp.Pool() as pool, \
+            open(f'data/{n}_qubit_subgroups_a.data', 'ab') as writer:
+        results = pool.imap(
+            get_check_matrices,
+            it.combinations(range(2*n), n),
+            chunksize=10
         )
 
-        for item in results:
-            if item is not None:
-                subgroups.append(item)
-                if len(subgroups) == 100_000:
-                    pickle.dump(subgroups, writer)
-                    subgroups = []
+        # results = map(
+        #     get_check_matrices,
+        #     it.combinations(range(2*n), n)
+        # )
+
+        for sublist in results:
+            subgroups += sublist
+            if len(subgroups) > 100_000:
+                pickle.dump(subgroups, writer)
+                subgroups = []
 
         pickle.dump(subgroups, writer)
 
@@ -359,5 +260,8 @@ def get_max_abelian_subgroups(n):
 
 
 if __name__ == '__main__':
-    subgroups = get_max_abelian_subgroups(4)
-    # test_gen = get_rref_matrices(6)
+    subgroups = get_max_abelian_subgroups()
+
+    # To compare
+    with open(f'data/{n}_qubit_subgroups.data', 'rb') as reader:
+        old_list = pickle.load(reader)
