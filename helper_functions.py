@@ -30,7 +30,7 @@ def np_unique_impl(a):
     return np.array(unique), np.array(counts)
 
 
-# TODO Rephrase things in terms of dot products?
+# TODO Rephrase things in terms of dot products? (Would this even be any better?)
 @numba.jit(nopython=True, parallel=False)
 def add_rows(a: np.ndarray, b: np.ndarray, n: int):
     """
@@ -63,7 +63,7 @@ def add_rows(a: np.ndarray, b: np.ndarray, n: int):
 
 
 @numba.jit(nopython=True, parallel=False)
-def rref_binary(xmatr_aug: np.ndarray):
+def rref_binary(xmatr_aug: np.ndarray, augmented=True):
     """
     'rref' function specifically for augmented check matrices.
 
@@ -73,7 +73,7 @@ def rref_binary(xmatr_aug: np.ndarray):
     xmatr_aug = np.copy(xmatr_aug)
 
     row_to_comp = 0
-    for j in range(num_cols - 1):
+    for j in range(2*num_rows):
         col = xmatr_aug[row_to_comp:, j]
         if np.count_nonzero(col) > 0:
             i = np.nonzero(col)[0][0] + row_to_comp
@@ -83,10 +83,12 @@ def rref_binary(xmatr_aug: np.ndarray):
 
             for ii in range(num_rows):
                 if ii != row_to_comp and xmatr_aug[ii, j] != 0:
-                    # xmatr_aug[ii, :] ^= xmatr_aug[row_to_comp, :]
-                    xmatr_aug[ii, :] = add_rows(xmatr_aug[ii, :],
-                                                xmatr_aug[row_to_comp, :],
-                                                num_rows)
+                    if augmented:
+                        xmatr_aug[ii, :] = add_rows(xmatr_aug[ii, :],
+                                                    xmatr_aug[row_to_comp, :],
+                                                    num_rows)
+                    else:
+                        xmatr_aug[ii, :] ^= xmatr_aug[row_to_comp, :]
 
             row_to_comp += 1
             if row_to_comp == num_rows:
