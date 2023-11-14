@@ -216,6 +216,20 @@ def get_children(xmatr_aug: np.ndarray) -> Tuple[np.ndarray, np.ndarray, complex
     child1 = rref_binary_aug(child1)
     child2 = rref_binary_aug(child2)
 
+    # TODO A 'more clever' way to put child matrices in 'rref' ---
+    # however, for this to work, check_matrices.py needs to be modified
+    # (bottom right block in a different form)
+    # nz_rows = np.nonzero(child1[:, i+n])[0].tolist()
+    # for r in nz_rows[1:]:
+    #     child1[r, :] = add_rows(child1[r, :], child1[0, :], n)
+    #     child2[r, :] = add_rows(child2[r, :], child2[0, :], n)
+
+    # pivots = list(zip(range(n), np.argmax(child1, axis=1).tolist()))
+    # pivots.sort(key=lambda x: x[1])
+    # reordering = tuple(x[0] for x in pivots)
+    # child1[:, :] = child1[reordering, :]
+    # child2[:, :] = child2[reordering, :]
+
     # Find the 'lowest' label in each child's support. Our convention is that
     # each stab state is normalized such that the amplitude of the component
     # with the lowest label is real and positive
@@ -249,33 +263,45 @@ def get_children(xmatr_aug: np.ndarray) -> Tuple[np.ndarray, np.ndarray, complex
     return child1, child2, rel_phase
 
 
-def get_B(xmatr_aug_list: List[np.ndarray], n: int) -> spr.csc_array:
+def get_B(xmatr_list: List[np.ndarray], n: int) -> spr.csc_array:
     """
-    Get a basis of triples in matrix form given a list of
-    augmented check matrices that have been ordered by increasing support size.
+    Get a basis of triples in matrix form given a list of (not augmented)
+    check matrices that have been ordered by increasing support size.
 
     """
 
-    B = spr.dok_array((len(xmatr_aug_list), len(xmatr_aug_list) - (1 << n)),
+    num_of_stab_states = len(xmatr_list) * (1 << n)
+
+    B = spr.dok_array((num_of_stab_states, num_of_stab_states - (1 << n)),
                       dtype=complex)
 
-    hash_map = dict((str(mat), i) for i, mat in
-                    enumerate(xmatr_aug_list[: 1 << n]))
+    hash_map = dict(((str(xmatr_list[0]), i), i) for i in range(1 << n))
 
-    for col_num, xmatr_aug in enumerate(xmatr_aug_list[1 << n:]):
-        if col_num % 100_000 == 0:
-            print(col_num)
+    for index, xmatr in enumerate(xmatr_list[1:]):
+        for numeric in range(1 << n):
+            col_num = index * (1 << n) + numeric
+            if col_num % 100_000 == 0:
+                print(col_num)
+                print(time.perf_counter())
 
-        # Hash all the augmented check matrices as we go through them
-        hash_map[str(xmatr_aug)] = col_num + (1 << n)
+            signs = f2.int_to_array(numeric, n)
 
-        child1, child2, rel_phase = get_children(xmatr_aug)
-        child1_index = hash_map[str(child1)]
-        child2_index = hash_map[str(child2)]
+            # Hash all the augmented check matrices as we go through them
+            hash_map[(str(xmatr), numeric)] = col_num + (1 << n)
 
-        B[child1_index, col_num] = 1
-        B[child2_index, col_num] = rel_phase
-        B[col_num + (1 << n), col_num] = -math.sqrt(2)
+            child1, child2, rel_phase = get_children(
+                np.column_stack((xmatr, signs)))
+            try:
+                child1_index = hash_map[(str(child1[:, :-1]),
+                                        f2.array_to_int(child1[:, -1]))]
+                child2_index = hash_map[(str(child2[:, :-1]),
+                                        f2.array_to_int(child2[:, -1]))]
+            except KeyError:
+                pass
+
+            B[child1_index, col_num] = 1
+            B[child2_index, col_num] = rel_phase
+            B[col_num + (1 << n), col_num] = -math.sqrt(2)
 
     return B.tocsc()
 
@@ -283,17 +309,8 @@ def get_B(xmatr_aug_list: List[np.ndarray], n: int) -> spr.csc_array:
 def main(n):
     with open(f'data/{n}_qubit_subgroups_cool.data', 'rb') as reader:
         xmatr_list = pickle.load(reader)
-
     print(f'{len(xmatr_list) = }')
-
-    # Generate augmented matrices
-    xmatr_aug_list = []
-    for mat in xmatr_list:
-        for numeric in range(1 << n):
-            signs = f2.int_to_array(numeric, n)
-            xmatr_aug_list.append(np.column_stack((mat, signs)))
-
-    return get_B(xmatr_aug_list, n)
+    return get_B(xmatr_list, n)
 
 
 if __name__ == '__main__':
