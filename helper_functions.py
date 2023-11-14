@@ -63,7 +63,32 @@ def add_rows(a: np.ndarray, b: np.ndarray, n: int):
 
 
 @numba.jit(nopython=True, parallel=False)
-def rref_binary(xmatr_aug: np.ndarray, augmented=True):
+def rref_binary(mat: np.ndarray):
+    num_rows, num_cols = mat.shape
+    mat = np.copy(mat)
+
+    row_to_comp = 0
+    for j in range(2*num_rows):
+        col = mat[row_to_comp:, j]
+        if np.count_nonzero(col) > 0:
+            i = np.nonzero(col)[0][0] + row_to_comp
+            temp = np.copy(mat[i, :])
+            mat[i, :] = mat[row_to_comp, :]
+            mat[row_to_comp, :] = temp
+
+            for ii in range(num_rows):
+                if ii != row_to_comp and mat[ii, j] != 0:
+                    mat[ii, :] ^= mat[row_to_comp, :]
+
+            row_to_comp += 1
+            if row_to_comp == num_rows:
+                break
+
+    return mat
+
+
+@numba.jit(nopython=True, parallel=False)
+def rref_binary_aug(xmatr_aug: np.ndarray):
     """
     'rref' function specifically for augmented check matrices.
 
@@ -83,12 +108,9 @@ def rref_binary(xmatr_aug: np.ndarray, augmented=True):
 
             for ii in range(num_rows):
                 if ii != row_to_comp and xmatr_aug[ii, j] != 0:
-                    if augmented:
-                        xmatr_aug[ii, :] = add_rows(xmatr_aug[ii, :],
-                                                    xmatr_aug[row_to_comp, :],
-                                                    num_rows)
-                    else:
-                        xmatr_aug[ii, :] ^= xmatr_aug[row_to_comp, :]
+                    xmatr_aug[ii, :] = add_rows(xmatr_aug[ii, :],
+                                                xmatr_aug[row_to_comp, :],
+                                                num_rows)
 
             row_to_comp += 1
             if row_to_comp == num_rows:
@@ -191,8 +213,8 @@ def get_children(xmatr_aug: np.ndarray) -> Tuple[np.ndarray, np.ndarray, complex
     new_row[-1] = 1
     child2 = np.vstack((new_row, xmatr_aug[1:, :]))
 
-    child1 = rref_binary(child1)
-    child2 = rref_binary(child2)
+    child1 = rref_binary_aug(child1)
+    child2 = rref_binary_aug(child2)
 
     # Find the 'lowest' label in each child's support. Our convention is that
     # each stab state is normalized such that the amplitude of the component
@@ -259,7 +281,7 @@ def get_B(xmatr_aug_list: List[np.ndarray], n: int) -> spr.csc_array:
 
 
 def main(n):
-    with open(f'data/{n}_qubit_subgroups.data', 'rb') as reader:
+    with open(f'data/{n}_qubit_subgroups_cool.data', 'rb') as reader:
         xmatr_list = pickle.load(reader)
 
     print(f'{len(xmatr_list) = }')
@@ -276,7 +298,7 @@ def main(n):
 
 if __name__ == '__main__':
     start = time.perf_counter()
-    n = 5
+    n = 6
     B = main(n)
     spr.save_npz(f'data/{n}_qubit_B', B)
     print(f'Time elapsed: {time.perf_counter() - start}')
