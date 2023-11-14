@@ -48,7 +48,7 @@ if __name__ == '__main__':
     # B_old = np.loadtxt('data/1_qubit_B.csv', dtype=complex, delimiter=',')
     # B = spr.load_npz('data/5_qubit_B.npz')
 
-    n = 1
+    n = 4
     start = time.perf_counter()
     B, optimal_val, x = optimize_stab_extent_T(n, True)
     print(f'Time elapsed: {time.perf_counter() - start}')
