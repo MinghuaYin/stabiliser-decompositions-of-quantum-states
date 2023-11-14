@@ -7,12 +7,16 @@ import pickle
 import time
 
 import F2_helper as f2
+import multiprocessing as mp
 import numpy as np
 import scipy.sparse as spr
 
 from functools import reduce
 from itertools import product
 from typing import List, Tuple
+
+
+n = 6
 
 
 # https://github.com/numba/numba/issues/2884#issuecomment-382278786
@@ -263,59 +267,136 @@ def get_children(xmatr_aug: np.ndarray) -> Tuple[np.ndarray, np.ndarray, complex
     return child1, child2, rel_phase
 
 
-def get_B(xmatr_list: List[np.ndarray], n: int) -> spr.csc_array:
+def init_worker(shared_queue: mp.SimpleQueue, shared_hash_map: dict):
+    global queue
+    queue = shared_queue
+    global hash_map
+    hash_map = shared_hash_map
+
+
+def chunks(ite: List, k: int):
+    for i in range(0, len(ite), k):
+        if i % 100_000 == 0:
+            print(i)
+        yield ite[i:i+k]
+
+
+def get_partial_hash_map(xmatr_list_partial):
+    return dict(((str(xmatr), i), i)
+                for xmatr in xmatr_list_partial for i in range(1 << n))
+
+
+def prepare_hash_map(xmatr_list: List[np.ndarray]) -> dict:
+    hash_map = dict()
+
+    with mp.Pool() as pool:
+        partial_hash_maps = pool.imap(get_partial_hash_map,
+                                      chunks(xmatr_list, 10_000))
+        for phm in partial_hash_maps:
+            hash_map.update(phm)
+
+    print('hash_map is done generating')
+    print(f'{len(hash_map) = }')
+    return hash_map
+
+
+def find_B_data(args):
+    """
+
+    Parameters
+    ----------
+    xmatr : np.ndarray
+
+    n : int
+
+    index : int
+
+    """
+
+    xmatr, n, index = args
+
+    results = []
+
+    global hash_map, queue
+
+    for numeric in range(1 << n):
+        col_num = index * (1 << n) + numeric
+        if col_num % 10_000_000 == 0:
+            print(col_num)
+            # print(time.perf_counter())
+
+        signs = f2.int_to_array(numeric, n)
+
+        # Hash all the augmented check matrices as we go through them
+        hash_map[(str(xmatr), numeric)] = col_num + (1 << n)
+
+        child1, child2, rel_phase = get_children(
+            np.column_stack((xmatr, signs)))
+        try:
+            child1_index = hash_map[(str(child1[:, :-1]),
+                                    f2.array_to_int(child1[:, -1]))]
+            child2_index = hash_map[(str(child2[:, :-1]),
+                                    f2.array_to_int(child2[:, -1]))]
+
+            # results.append((col_num, child1_index, child2_index, rel_phase))
+            queue.put((col_num, child1_index, child2_index, rel_phase))
+        except KeyError:
+            raise
+
+    # return results
+    queue.put(None)
+
+
+def get_B(xmatr_list: List[np.ndarray], hash_map: dict) -> spr.csc_array:
     """
     Get a basis of triples in matrix form given a list of (not augmented)
     check matrices that have been ordered by increasing support size.
 
     """
 
-    num_of_stab_states = len(xmatr_list) * (1 << n)
+    list_length = len(xmatr_list)
+    num_of_stab_states = list_length * (1 << n)
 
     B = spr.dok_array((num_of_stab_states, num_of_stab_states - (1 << n)),
                       dtype=complex)
 
-    hash_map = dict(((str(xmatr_list[0]), i), i) for i in range(1 << n))
+    shared_queue = mp.SimpleQueue()
+    with mp.Pool(initializer=init_worker,
+                 initargs=(shared_queue, hash_map)) as pool, \
+            open(f'data/{n}_B_data.data', 'ab') as writer:
+        lists_of_results = pool.imap(
+            find_B_data,
+            ((xmatr, n, index) for index, xmatr in enumerate(xmatr_list[1:])))
 
-    for index, xmatr in enumerate(xmatr_list[1:]):
-        for numeric in range(1 << n):
-            col_num = index * (1 << n) + numeric
-            if col_num % 100_000 == 0:
-                print(col_num)
-                print(time.perf_counter())
-
-            signs = f2.int_to_array(numeric, n)
-
-            # Hash all the augmented check matrices as we go through them
-            hash_map[(str(xmatr), numeric)] = col_num + (1 << n)
-
-            child1, child2, rel_phase = get_children(
-                np.column_stack((xmatr, signs)))
-            try:
-                child1_index = hash_map[(str(child1[:, :-1]),
-                                        f2.array_to_int(child1[:, -1]))]
-                child2_index = hash_map[(str(child2[:, :-1]),
-                                        f2.array_to_int(child2[:, -1]))]
-            except KeyError:
-                pass
-
-            B[child1_index, col_num] = 1
-            B[child2_index, col_num] = rel_phase
-            B[col_num + (1 << n), col_num] = -math.sqrt(2)
+        tasks_finished = 0
+        while tasks_finished < list_length - 1:
+            result = shared_queue.get()
+            if result is None:
+                tasks_finished += 1
+            else:
+                # for results in lists_of_results:
+                #     pickle.dump(results, writer)
+                # for result in results:
+                # print(result)
+                # col_num, child1_index, child2_index, rel_phase = result
+                # B[child1_index, col_num] = 1
+                # B[child2_index, col_num] = rel_phase
+                # B[col_num + (1 << n), col_num] = -math.sqrt(2)
+                pickle.dump(result, writer)
 
     return B.tocsc()
 
 
-def main(n):
-    with open(f'data/{n}_qubit_subgroups_cool.data', 'rb') as reader:
+def main():
+    with open(f'data/{n}_qubit_subgroups.data', 'rb') as reader:
         xmatr_list = pickle.load(reader)
     print(f'{len(xmatr_list) = }')
-    return get_B(xmatr_list, n)
+    hash_map = prepare_hash_map(xmatr_list)
+    with open(f'data/{n}_qubit_hash_map.data', 'wb') as writer:
+        pickle.dump(hash_map, writer)
 
 
 if __name__ == '__main__':
     start = time.perf_counter()
-    n = 6
-    B = main(n)
-    spr.save_npz(f'data/{n}_qubit_B', B)
+    main()
     print(f'Time elapsed: {time.perf_counter() - start}')
