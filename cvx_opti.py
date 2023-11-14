@@ -5,6 +5,8 @@ import cvxpy as cp
 import numpy as np
 import scipy.sparse as spr
 
+sqrt2 = 1.4142135623730950
+
 
 def ham(n: int) -> int:
     weight = 0
@@ -17,7 +19,6 @@ def ham(n: int) -> int:
 
 
 def optimize_stab_extent_T(n: int, print_output=False):
-    # B = np.loadtxt('data/1_qubit_B.csv', dtype=complex, delimiter=',')
     B = spr.load_npz(f'data/{n}_qubit_B.npz')
     num_stab_states, num_non_comp_stab_states = B.shape
 

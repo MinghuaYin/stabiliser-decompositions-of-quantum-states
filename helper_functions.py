@@ -15,7 +15,6 @@ from functools import reduce
 from itertools import product
 from typing import List, Tuple
 
-
 n = 6
 
 
@@ -387,13 +386,14 @@ def get_B(xmatr_list: List[np.ndarray], hash_map: dict) -> spr.csc_array:
     return B.tocsc()
 
 
-def main():
-    with open(f'data/{n}_qubit_subgroups.data', 'rb') as reader:
-        xmatr_list = pickle.load(reader)
-    print(f'{len(xmatr_list) = }')
-    hash_map = prepare_hash_map(xmatr_list)
-    with open(f'data/{n}_qubit_hash_map.data', 'wb') as writer:
-        pickle.dump(hash_map, writer)
+def main(hash_map_ready=False):
+    if not hash_map_ready:
+        with open(f'data/{n}_qubit_subgroups.data', 'rb') as reader:
+            xmatr_list = pickle.load(reader)
+        print(f'{len(xmatr_list) = }')
+        hash_map = prepare_hash_map(xmatr_list)
+        with open(f'data/{n}_qubit_hash_map.data', 'wb') as writer:
+            pickle.dump(hash_map, writer)
 
 
 if __name__ == '__main__':
