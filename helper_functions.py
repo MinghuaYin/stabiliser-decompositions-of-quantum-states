@@ -356,13 +356,13 @@ def get_B(xmatr_list: List[np.ndarray], hash_map: dict) -> spr.csc_array:
 
 
 def main():
-    with open(f'data/{n}_qubit_hash_map.data', 'rb') as r1, \
-            open(f'data/{n}_qubit_subgroups.data', 'rb') as r2:
-        hash_map = pickle.load(r1)
+    # with open(f'data/{n}_qubit_hash_map.data', 'rb') as r1, \
+    with open(f'data/{n}_qubit_subgroups.data', 'rb') as r2:
+        # hash_map = pickle.load(r1)
         xmatr_list = pickle.load(r2)
         print(f'{len(xmatr_list) = }')
 
-    B = get_B(xmatr_list, hash_map)
+    B = get_B(xmatr_list, {})
     # spr.save_npz(f'data/{n}_qubit_B_a', B)  # TODO
     return B
 
