@@ -271,7 +271,7 @@ def init_worker(shared_hash_map: dict):
     hash_map = shared_hash_map
 
 
-def find_B_data(args) -> list:
+def find_B_data_for_one_xmatr(args) -> list:
     """
 
     Parameters
@@ -300,15 +300,16 @@ def find_B_data(args) -> list:
 
         child1, child2, rel_phase = get_children(
             np.column_stack((xmatr, signs)))
-        try:
-            child1_index = hash_map[str(child1[:, :-1])] * (1 << n) \
-                + f2.array_to_int(child1[:, -1])
-            child2_index = hash_map[str(child2[:, :-1])] * (1 << n) \
-                + f2.array_to_int(child2[:, -1])
+        # try:
+        #     child1_index = hash_map[str(child1[:, :-1])] * (1 << n) \
+        #         + f2.array_to_int(child1[:, -1])
+        #     child2_index = hash_map[str(child2[:, :-1])] * (1 << n) \
+        #         + f2.array_to_int(child2[:, -1])
 
-            results.append((col_num, child1_index, child2_index, rel_phase))
-        except KeyError:
-            raise
+        #     results.append((col_num, child1_index, child2_index, rel_phase))
+        # except KeyError:
+        #     raise
+        results.append((col_num, child1, child2, rel_phase))
 
     return results
 
@@ -330,19 +331,26 @@ def get_B(xmatr_list: List[np.ndarray], hash_map: dict) -> spr.csc_array:
                  initargs=(hash_map,)) as pool, \
             open(f'data/{n}_B_data.data', 'ab') as writer:
         lists_of_results = pool.imap_unordered(
-            find_B_data,
+            find_B_data_for_one_xmatr,
             ((xmatr, n, index, hash_map)
              for index, xmatr in enumerate(xmatr_list[1:])),
             chunksize=100)
 
+        B_data = []
         for results in lists_of_results:
-            # pickle.dump(results, writer)
             for result in results:
                 # print(result)
-                col_num, child1_index, child2_index, rel_phase = result
-                B[child1_index, col_num] = 1
-                B[child2_index, col_num] = rel_phase
-                B[col_num + (1 << n), col_num] = -sqrt2
+                B_data.append(result)
+                if len(B_data) >= 100_000:
+                    pickle.dump(B_data, writer)
+                    B_data = []
+
+                # col_num, child1_index, child2_index, rel_phase = result
+                # B[child1_index, col_num] = 1
+                # B[child2_index, col_num] = rel_phase
+                # B[col_num + (1 << n), col_num] = -sqrt2
+
+        pickle.dump(B_data, writer)
 
     return B.tocsc()
 
@@ -355,7 +363,7 @@ def main():
         print(f'{len(xmatr_list) = }')
 
     B = get_B(xmatr_list, hash_map)
-    spr.save_npz(f'data/{n}_qubit_B_a', B)
+    # spr.save_npz(f'data/{n}_qubit_B_a', B)  # TODO
     return B
 
 
