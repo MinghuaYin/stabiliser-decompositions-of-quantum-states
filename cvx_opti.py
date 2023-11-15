@@ -5,8 +5,6 @@ import cvxpy as cp
 import numpy as np
 import scipy.sparse as spr
 
-sqrt2 = 1.4142135623730950
-
 
 def ham(n: int) -> int:
     weight = 0
@@ -34,7 +32,7 @@ def optimize_stab_extent_T(n: int, print_output=False):
     # obj = cp.Minimize((B @ x_l1 + c).count_nonzero())  # TODO Stabilizer rank lol?
 
     prob = cp.Problem(obj)
-    solution = prob.solve(solver='GUROBI')  # TODO Is ECOS the best?
+    solution = prob.solve(solver='GUROBI', verbose=True)
 
     if print_output:
         print(f"status: {prob.status}")
@@ -53,7 +51,8 @@ def more_precise_soln(x: np.ndarray):
 
 if __name__ == '__main__':
     n = 4
+    print(f'{n = }')
     start = time.perf_counter()
     B, optimal_val, x = optimize_stab_extent_T(n, True)
-    # np.save(f'data/{n}_qubit_soln', x)
+    np.save(f'data/{n}_qubit_soln', x)
     print(f'Time elapsed: {time.perf_counter() - start}')
