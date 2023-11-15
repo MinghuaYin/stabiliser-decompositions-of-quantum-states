@@ -278,6 +278,12 @@ def polish(xmatrs: List[np.ndarray]):
     return xmatrs
 
 
+def get_hash_map(xmatrs: List[np.ndarray]):
+    print('Generating hash_map')
+    hash_keys = [str(m) for m in xmatrs]
+    return dict((k, v) for v, k in enumerate(hash_keys))
+
+
 if __name__ == '__main__':
     # with open(f'data/{n}_qubit_top_left.data', 'rb') as reader:
     #     top_lefts = pickle.load(reader)
@@ -295,6 +301,9 @@ if __name__ == '__main__':
 
     unpolished_xmatrs[0] = unpolished_xmatrs[0][0]
     polished_xmatrs = polish(unpolished_xmatrs)
+    hash_map = get_hash_map(polished_xmatrs)
 
-    with open(f'data/{n}_qubit_subgroups_cool.data', 'wb') as writer:
-        pickle.dump(polished_xmatrs, writer)
+    with open(f'data/{n}_qubit_subgroups_cool.data', 'wb') as w1, \
+            open(f'data/{n}_qubit_hash_map.data', 'wb') as w2:
+        pickle.dump(polished_xmatrs, w1)
+        pickle.dump(hash_map, w2)
