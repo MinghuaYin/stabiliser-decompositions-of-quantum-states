@@ -1,13 +1,14 @@
 import functools
 import numpy as np
+from typing import List
 
 
-def evaluate_poly(non_zero_coeffs: list[int], integer: int) -> int:
+def evaluate_poly(non_zero_coeffs: List[int], integer: int) -> int:
     terms = [integer & index == index for index in non_zero_coeffs]
     return int(functools.reduce(lambda x, y: x ^ y, terms, 0))
 
 
-def sign_evaluate_poly(non_zero_coeffs: list[int], integer: int) -> int:
+def sign_evaluate_poly(non_zero_coeffs: List[int], integer: int) -> int:
     return 1-2*evaluate_poly(non_zero_coeffs, integer)
 
 
@@ -47,7 +48,7 @@ def get_bit_at(x: int, bit_location: int) -> int:
     return (x & power_of_two) == power_of_two
 
 
-def get_vector_expansion(dimension: int, basis_vectors: list[int], coefficients: int) -> int:
+def get_vector_expansion(dimension: int, basis_vectors: List[int], coefficients: int) -> int:
     terms = [get_bit_at(coefficients, j)*basis_vectors[j]
              for j in range(dimension)]
     return functools.reduce(lambda x, y: x ^ y, terms, 0)
@@ -58,4 +59,4 @@ def array_to_int(array: np.ndarray) -> int:
 
 
 def int_to_array(numeric: int, n: int) -> np.ndarray:
-    return np.array(list(format(numeric, f'0{n}b'))).astype(np.int8)
+    return np.array(List(format(numeric, f'0{n}b'))).astype(np.int8)

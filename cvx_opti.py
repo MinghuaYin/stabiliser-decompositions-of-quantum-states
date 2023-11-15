@@ -31,6 +31,7 @@ def optimize_stab_extent_T(n: int, print_output=False):
     x_l1 = cp.Variable((num_non_comp_stab_states, 1), complex=True)
 
     obj = cp.Minimize(cp.norm(B @ x_l1 + c, 1)**2)
+    # obj = cp.Minimize((B @ x_l1 + c).count_nonzero())  # TODO Stabilizer rank lol?
 
     prob = cp.Problem(obj)
     solution = prob.solve(solver='GUROBI')  # TODO Is ECOS the best?
@@ -46,10 +47,8 @@ def optimize_stab_extent_T(n: int, print_output=False):
 
 
 if __name__ == '__main__':
-    # B_old = np.loadtxt('data/1_qubit_B.csv', dtype=complex, delimiter=',')
-    # B = spr.load_npz('data/5_qubit_B.npz')
-
     n = 4
     start = time.perf_counter()
     B, optimal_val, x = optimize_stab_extent_T(n, True)
+    # np.save(f'data/{n}_qubit_soln', x)
     print(f'Time elapsed: {time.perf_counter() - start}')

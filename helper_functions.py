@@ -12,15 +12,17 @@ import numpy as np
 import scipy.sparse as spr
 
 from functools import reduce
-from itertools import product
+from itertools import combinations, product
 from typing import List, Tuple
 
-n = 6
+n = 5
+
+# -------- Functions for generating the B matrix of linearly dependent triples --------
 
 
-# https://github.com/numba/numba/issues/2884#issuecomment-382278786
 @numba.jit(nopython=True, parallel=False)
 def np_unique_impl(a):
+    # https://github.com/numba/numba/issues/2884#issuecomment-382278786
     b = np.sort(a.flatten())
     unique = list(b[:1])
     counts = [1 for _ in unique]
@@ -281,18 +283,20 @@ def chunks(ite: List, k: int):
 
 
 def get_partial_hash_map(xmatr_list_partial):
-    return dict(((str(xmatr), i), i)
-                for xmatr in xmatr_list_partial for i in range(1 << n))
+    global hash_map
+    partial_hash_map = dict(((str(xmatr), i), i)
+                            for xmatr in xmatr_list_partial for i in range(1 << n))
+    hash_map.update(partial_hash_map)
 
 
 def prepare_hash_map(xmatr_list: List[np.ndarray]) -> dict:
     hash_map = dict()
 
-    with mp.Pool() as pool:
-        partial_hash_maps = pool.imap(get_partial_hash_map,
-                                      chunks(xmatr_list, 10_000))
-        for phm in partial_hash_maps:
-            hash_map.update(phm)
+    with mp.Pool(initializer=init_worker, initargs=(None, hash_map)) as pool:
+        partial_hash_maps = pool.map(get_partial_hash_map,
+                                     chunks(xmatr_list, 10_000))
+        # for phm in partial_hash_maps:
+        #     hash_map.update(phm)
 
     print('hash_map is done generating')
     print(f'{len(hash_map) = }')
@@ -394,9 +398,41 @@ def main(hash_map_ready=False):
         hash_map = prepare_hash_map(xmatr_list)
         with open(f'data/{n}_qubit_hash_map.data', 'wb') as writer:
             pickle.dump(hash_map, writer)
+    else:
+        with open(f'data/{n}_qubit_hash_map.data', 'rb') as reader:
+            hash_map = pickle.load(reader)
+
+    return
+    B = get_B(xmatr_list, hash_map)
+    spr.save_npz(f'data/{n}_qubit_B', B)
+    return B
+
+
+# -------- Helper functions for getting non-stabilizer states --------
+
+
+def get_dicke_state(n, weight):
+    """
+    Note: Dicke state is not normalized --- all nonzero elements are 1
+
+    """
+
+    dicke_state = np.zeros(1 << n, dtype=np.int8)
+    combos = combinations(range(n), weight)
+
+    for c in combos:
+        index_str = ''.join([('1' if i in c else '0') for i in range(n)])
+        index = int(index_str, 2)
+        dicke_state[index] = 1
+
+    return dicke_state
+
+
+def get_CCZ_state(n):
+    pass
 
 
 if __name__ == '__main__':
     start = time.perf_counter()
-    main()
+    B = main()
     print(f'Time elapsed: {time.perf_counter() - start}')

@@ -162,3 +162,4 @@ cython_debug/
 subgroups_profile.Result
 data/4_qubit_B.csv
 data/6_qubit_subgroups.data
+data/6_qubit_hash_map.data
