@@ -46,6 +46,10 @@ def optimize_stab_extent_T(n: int, print_output=False):
     return B, obj.value, x_l1.value
 
 
+def more_precise_soln(x):
+    pass
+
+
 if __name__ == '__main__':
     n = 4
     start = time.perf_counter()

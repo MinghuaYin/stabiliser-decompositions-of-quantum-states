@@ -59,4 +59,4 @@ def array_to_int(array: np.ndarray) -> int:
 
 
 def int_to_array(numeric: int, n: int) -> np.ndarray:
-    return np.array(List(format(numeric, f'0{n}b'))).astype(np.int8)
+    return np.array(list(format(numeric, f'0{n}b'))).astype(np.int8)
