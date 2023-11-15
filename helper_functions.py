@@ -15,7 +15,9 @@ from functools import reduce
 from itertools import combinations, product
 from typing import List, Tuple
 
-n = 5
+n = 6
+
+sqrt2 = 1.4142135623730950
 
 # -------- Functions for generating the B matrix of linearly dependent triples --------
 
@@ -131,7 +133,6 @@ def get_stab_support(xmatr_aug: np.ndarray) -> np.ndarray:
 
     """
 
-    n = xmatr_aug.shape[0]
     x_part = xmatr_aug[:, :n]
     x_part = x_part[~np.all(x_part == 0, axis=1)]
     k = x_part.shape[0]
@@ -171,7 +172,6 @@ def get_pauli_between_comp_states(start_bit: int, end_bit: int,
 
     """
 
-    n = xmatr_aug.shape[0]
     x_part = xmatr_aug[:, :n]
     xmatr_aug = xmatr_aug[~np.all(x_part == 0, axis=1)]
     num_rows = xmatr_aug.shape[0]
@@ -205,8 +205,6 @@ def get_children(xmatr_aug: np.ndarray) -> Tuple[np.ndarray, np.ndarray, complex
     rel_phase : complex
 
     """
-
-    n = xmatr_aug.shape[0]
 
     i = np.argmax(xmatr_aug[0, :])
 
@@ -268,42 +266,12 @@ def get_children(xmatr_aug: np.ndarray) -> Tuple[np.ndarray, np.ndarray, complex
     return child1, child2, rel_phase
 
 
-def init_worker(shared_queue: mp.SimpleQueue, shared_hash_map: dict):
-    global queue
-    queue = shared_queue
+def init_worker(shared_hash_map: dict):
     global hash_map
     hash_map = shared_hash_map
 
 
-def chunks(ite: List, k: int):
-    for i in range(0, len(ite), k):
-        if i % 100_000 == 0:
-            print(i)
-        yield ite[i:i+k]
-
-
-def get_partial_hash_map(xmatr_list_partial):
-    global hash_map
-    partial_hash_map = dict(((str(xmatr), i), i)
-                            for xmatr in xmatr_list_partial for i in range(1 << n))
-    hash_map.update(partial_hash_map)
-
-
-def prepare_hash_map(xmatr_list: List[np.ndarray]) -> dict:
-    hash_map = dict()
-
-    with mp.Pool(initializer=init_worker, initargs=(None, hash_map)) as pool:
-        partial_hash_maps = pool.map(get_partial_hash_map,
-                                     chunks(xmatr_list, 10_000))
-        # for phm in partial_hash_maps:
-        #     hash_map.update(phm)
-
-    print('hash_map is done generating')
-    print(f'{len(hash_map) = }')
-    return hash_map
-
-
-def find_B_data(args):
+def find_B_data(args) -> list:
     """
 
     Parameters
@@ -314,13 +282,13 @@ def find_B_data(args):
 
     index : int
 
+    hash_map : dict
+
     """
 
-    xmatr, n, index = args
+    xmatr, n, index, hash_map = args
 
     results = []
-
-    global hash_map, queue
 
     for numeric in range(1 << n):
         col_num = index * (1 << n) + numeric
@@ -330,24 +298,19 @@ def find_B_data(args):
 
         signs = f2.int_to_array(numeric, n)
 
-        # Hash all the augmented check matrices as we go through them
-        hash_map[(str(xmatr), numeric)] = col_num + (1 << n)
-
         child1, child2, rel_phase = get_children(
             np.column_stack((xmatr, signs)))
         try:
-            child1_index = hash_map[(str(child1[:, :-1]),
-                                    f2.array_to_int(child1[:, -1]))]
-            child2_index = hash_map[(str(child2[:, :-1]),
-                                    f2.array_to_int(child2[:, -1]))]
+            child1_index = hash_map[str(child1[:, :-1])] * (1 << n) \
+                + f2.array_to_int(child1[:, -1])
+            child2_index = hash_map[str(child2[:, :-1])] * (1 << n) \
+                + f2.array_to_int(child2[:, -1])
 
-            # results.append((col_num, child1_index, child2_index, rel_phase))
-            queue.put((col_num, child1_index, child2_index, rel_phase))
+            results.append((col_num, child1_index, child2_index, rel_phase))
         except KeyError:
             raise
 
-    # return results
-    queue.put(None)
+    return results
 
 
 def get_B(xmatr_list: List[np.ndarray], hash_map: dict) -> spr.csc_array:
@@ -363,48 +326,36 @@ def get_B(xmatr_list: List[np.ndarray], hash_map: dict) -> spr.csc_array:
     B = spr.dok_array((num_of_stab_states, num_of_stab_states - (1 << n)),
                       dtype=complex)
 
-    shared_queue = mp.SimpleQueue()
     with mp.Pool(initializer=init_worker,
-                 initargs=(shared_queue, hash_map)) as pool, \
+                 initargs=(hash_map,)) as pool, \
             open(f'data/{n}_B_data.data', 'ab') as writer:
-        lists_of_results = pool.imap(
+        lists_of_results = pool.imap_unordered(
             find_B_data,
-            ((xmatr, n, index) for index, xmatr in enumerate(xmatr_list[1:])))
+            ((xmatr, n, index, hash_map)
+             for index, xmatr in enumerate(xmatr_list[1:])),
+            chunksize=100)
 
-        tasks_finished = 0
-        while tasks_finished < list_length - 1:
-            result = shared_queue.get()
-            if result is None:
-                tasks_finished += 1
-            else:
-                # for results in lists_of_results:
-                #     pickle.dump(results, writer)
-                # for result in results:
+        for results in lists_of_results:
+            # pickle.dump(results, writer)
+            for result in results:
                 # print(result)
-                # col_num, child1_index, child2_index, rel_phase = result
-                # B[child1_index, col_num] = 1
-                # B[child2_index, col_num] = rel_phase
-                # B[col_num + (1 << n), col_num] = -math.sqrt(2)
-                pickle.dump(result, writer)
+                col_num, child1_index, child2_index, rel_phase = result
+                B[child1_index, col_num] = 1
+                B[child2_index, col_num] = rel_phase
+                B[col_num + (1 << n), col_num] = -sqrt2
 
     return B.tocsc()
 
 
-def main(hash_map_ready=False):
-    if not hash_map_ready:
-        with open(f'data/{n}_qubit_subgroups.data', 'rb') as reader:
-            xmatr_list = pickle.load(reader)
+def main():
+    with open(f'data/{n}_qubit_hash_map.data', 'rb') as r1, \
+            open(f'data/{n}_qubit_subgroups.data', 'rb') as r2:
+        hash_map = pickle.load(r1)
+        xmatr_list = pickle.load(r2)
         print(f'{len(xmatr_list) = }')
-        hash_map = prepare_hash_map(xmatr_list)
-        with open(f'data/{n}_qubit_hash_map.data', 'wb') as writer:
-            pickle.dump(hash_map, writer)
-    else:
-        with open(f'data/{n}_qubit_hash_map.data', 'rb') as reader:
-            hash_map = pickle.load(reader)
 
-    return
     B = get_B(xmatr_list, hash_map)
-    spr.save_npz(f'data/{n}_qubit_B', B)
+    spr.save_npz(f'data/{n}_qubit_B_a', B)
     return B
 
 

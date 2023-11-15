@@ -16,7 +16,7 @@ def np_block(X):
 
 
 # ***** EDIT THIS BEFORE RUNNING *****
-n = 6
+n = 5
 
 O = np.zeros((n, n), dtype=np.int8)
 I = np.eye(n, dtype=np.int8)
@@ -232,7 +232,7 @@ def finish(merged_mats: Sequence[Tuple[np.ndarray, Tuple, List]]):
     xmatrs = []
 
     with mp.Pool() as pool, \
-            open(f'data/{n}_qubit_subgroups_cool.data', 'ab') as writer:
+            open(f'data/{n}_qubit_subgroups.data', 'ab') as writer:
         xmatrs.append(merged_mats[0][0])
 
         results = pool.imap_unordered(top_right_wrapper,
@@ -266,6 +266,9 @@ def finish(merged_mats: Sequence[Tuple[np.ndarray, Tuple, List]]):
 
 
 def polish(xmatrs: List[np.ndarray]):
+    if n == 1:
+        return xmatrs
+
     print('Polishing step 1: row reduce every matrix')
     # Put all matrices in rref
     for i, xmatr in enumerate(xmatrs):
@@ -292,18 +295,17 @@ if __name__ == '__main__':
     # last_xmatrs = finish(merged_mats)
 
     unpolished_xmatrs = []
-    with open(f'data/{n}_qubit_subgroups_cool.data', 'rb') as reader:
+    with open(f'data/{n}_qubit_subgroups.data', 'rb') as reader:
         try:
             while True:
                 unpolished_xmatrs += pickle.load(reader)
         except EOFError:
             pass
 
-    unpolished_xmatrs[0] = unpolished_xmatrs[0][0]
     polished_xmatrs = polish(unpolished_xmatrs)
     hash_map = get_hash_map(polished_xmatrs)
 
-    with open(f'data/{n}_qubit_subgroups_cool.data', 'wb') as w1, \
+    with open(f'data/{n}_qubit_subgroups.data', 'wb') as w1, \
             open(f'data/{n}_qubit_hash_map.data', 'wb') as w2:
         pickle.dump(polished_xmatrs, w1)
         pickle.dump(hash_map, w2)
