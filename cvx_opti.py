@@ -54,7 +54,7 @@ def W_state(n) -> np.ndarray:
                                   for x in product((0, 1), repeat=n)], dtype=complex)
 
 
-def optimize_stab_extent(state: np.ndarray, n: int, print_output=False, solver='GUROBI') -> \
+def optimize_stab_extent(state: np.ndarray, n: int, print_output=True, solver='GUROBI') -> \
         Tuple[np.ndarray, float, np.ndarray]:
     B = spr.load_npz(f'data/{n}_qubit_B.npz')
     num_stab_states, num_non_comp_stab_states = B.shape
@@ -88,12 +88,11 @@ def optimize_stab_extent(state: np.ndarray, n: int, print_output=False, solver='
     return B, obj.value, x_l1.value
 
 
-def more_precise_soln(n: int, x: np.ndarray, non_stab_state: np.ndarray, rnd_dec: int = 3) -> \
-        Tuple[float, np.ndarray, np.ndarray]:
+def more_precise_soln(n: int, B: spr.sparray, x: np.ndarray,
+                      non_stab_state: np.ndarray, rnd_dec: int = 3) -> Tuple[float, np.ndarray, np.ndarray]:
     with open(f'data/{n}_qubit_subgroups.data', 'rb') as reader:
         xmatrs = pickle.load(reader)
 
-    B = spr.load_npz(f'data/{n}_qubit_B.npz')
     num_stab_states = B.shape[0]
 
     c = np.zeros(num_stab_states, dtype=complex)
@@ -119,12 +118,28 @@ def more_precise_soln(n: int, x: np.ndarray, non_stab_state: np.ndarray, rnd_dec
     return extent, state_vectors.toarray(), soln
 
 
+def combine(state, n, print_output=True, solver='GUROBI', rnd_dec=3):
+    """
+    Returns:
+
+    extent: float
+
+    state_vectors: np.ndarray
+
+    soln: np.ndarray
+
+    """
+
+    B, optimal_val, x = optimize_stab_extent(state, n, print_output, solver)
+    return more_precise_soln(n, B, x, state, rnd_dec)
+
+
 if __name__ == '__main__':
     n = int(sys.argv[1])
     solver = 'GUROBI' if len(sys.argv) == 2 else sys.argv[2]
 
     print(f'{n = }')
     start = time.perf_counter()
-    B, optimal_val, x = optimize_stab_extent(n, True, solver)
+    B, optimal_val, x = optimize_stab_extent(T_state(n), n, True, solver)
     np.save(f'data/{n}_qubit_soln', x)
     print(f'Time elapsed: {time.perf_counter() - start}')
