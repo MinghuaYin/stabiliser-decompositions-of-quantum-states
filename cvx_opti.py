@@ -22,13 +22,13 @@ def ham(n: int) -> int:
     return weight
 
 
-def T_state(n):
+def T_state(n) -> np.ndarray:
     exp_pi_i_over_4 = 1/math.sqrt(2) * (1 + 1j)
     return 1/2**(n/2) * np.array([exp_pi_i_over_4 ** ham(i)
                                   for i in range(2**n)], dtype=complex)
 
 
-def dicke_state(n, weight):
+def dicke_state(n, weight) -> np.ndarray:
     """
     Note: Dicke state is not normalized --- all nonzero elements are 1
 
@@ -45,8 +45,8 @@ def dicke_state(n, weight):
     return dicke_state
 
 
-def CCZ_state(n):
-    pass
+def CCZ_state(n) -> np.ndarray:
+    return np.array([1]*((1 << n)-1) + [-1], dtype=np.int8)
 
 
 def optimize_stab_extent_T(n: int, print_output=False) -> Tuple[np.ndarray, float, np.ndarray]:
