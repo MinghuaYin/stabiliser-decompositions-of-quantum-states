@@ -266,12 +266,7 @@ def get_children(xmatr_aug: np.ndarray) -> Tuple[np.ndarray, np.ndarray, complex
     return child1, child2, rel_phase
 
 
-def init_worker(shared_hash_map: dict):
-    global hash_map
-    hash_map = shared_hash_map
-
-
-def find_B_data_for_one_xmatr(args) -> list:
+def find_B_data_for_one_xmatr(args) -> List:
     """
 
     Parameters
@@ -282,11 +277,9 @@ def find_B_data_for_one_xmatr(args) -> list:
 
     index : int
 
-    hash_map : dict
-
     """
 
-    xmatr, n, index, hash_map = args
+    xmatr, n, index = args
 
     results = []
 
@@ -314,25 +307,18 @@ def find_B_data_for_one_xmatr(args) -> list:
     return results
 
 
-def get_B(xmatr_list: List[np.ndarray], hash_map: dict) -> spr.csc_array:
+def get_B_data(xmatr_list: List[np.ndarray]):
     """
     Get a basis of triples in matrix form given a list of (not augmented)
     check matrices that have been ordered by increasing support size.
 
     """
 
-    list_length = len(xmatr_list)
-    num_of_stab_states = list_length * (1 << n)
-
-    B = spr.dok_array((num_of_stab_states, num_of_stab_states - (1 << n)),
-                      dtype=complex)
-
-    with mp.Pool(initializer=init_worker,
-                 initargs=(hash_map,)) as pool, \
+    with mp.Pool() as pool, \
             open(f'data/{n}_B_data.data', 'ab') as writer:
         lists_of_results = pool.imap_unordered(
             find_B_data_for_one_xmatr,
-            ((xmatr, n, index, hash_map)
+            ((xmatr, n, index)
              for index, xmatr in enumerate(xmatr_list[1:])),
             chunksize=100)
 
@@ -352,17 +338,20 @@ def get_B(xmatr_list: List[np.ndarray], hash_map: dict) -> spr.csc_array:
 
         pickle.dump(B_data, writer)
 
-    return B.tocsc()
-
 
 def main():
     # with open(f'data/{n}_qubit_hash_map.data', 'rb') as r1, \
     with open(f'data/{n}_qubit_subgroups.data', 'rb') as r2:
         # hash_map = pickle.load(r1)
         xmatr_list = pickle.load(r2)
-        print(f'{len(xmatr_list) = }')
 
-    B = get_B(xmatr_list, {})
+    list_length = len(xmatr_list)
+    print(f'{list_length = }')
+    num_of_stab_states = list_length * (1 << n)
+
+    get_B_data(xmatr_list)
+    B = spr.dok_array((num_of_stab_states, num_of_stab_states - (1 << n)),
+                      dtype=complex)
     # spr.save_npz(f'data/{n}_qubit_B_a', B)  # TODO
     return B
 

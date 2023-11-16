@@ -1,5 +1,6 @@
 import math
 import pickle
+import sys
 import time
 
 import cvxpy as cp
@@ -49,7 +50,7 @@ def CCZ_state(n) -> np.ndarray:
     return np.array([1]*((1 << n)-1) + [-1], dtype=np.int8)
 
 
-def optimize_stab_extent_T(n: int, print_output=False) -> Tuple[np.ndarray, float, np.ndarray]:
+def optimize_stab_extent_T(n: int, print_output=False, solver='GUROBI') -> Tuple[np.ndarray, float, np.ndarray]:
     B = spr.load_npz(f'data/{n}_qubit_B.npz')
     num_stab_states, num_non_comp_stab_states = B.shape
 
@@ -63,7 +64,14 @@ def optimize_stab_extent_T(n: int, print_output=False) -> Tuple[np.ndarray, floa
     # obj = cp.Minimize((B @ x_l1 + c).count_nonzero())  # TODO Stabilizer rank lol?
 
     prob = cp.Problem(obj)
-    solution = prob.solve(solver='GUROBI', BarQCPConvTol=1e-10)  # verbose=True
+    eps = 1e-10
+    if solver == 'GUROBI':
+        solution = prob.solve(
+            solver='GUROBI', BarQCPConvTol=eps)  # verbose=True
+    elif solver == 'SCS':
+        solution = prob.solve(solver='SCS', eps=eps)  # verbose=True
+    elif solver == 'ECOS':
+        solution = prob.solve(solver='ECOS', reltol=eps)
 
     if print_output:
         print(f"status: {prob.status}")
@@ -106,9 +114,11 @@ def more_precise_soln(n: int, x: np.ndarray, non_stab_state: np.ndarray, rnd_dec
 
 
 if __name__ == '__main__':
-    n = 4
+    n = int(sys.argv[1])
+    solver = 'GUROBI' if len(sys.argv) == 2 else sys.argv[2]
+
     print(f'{n = }')
     start = time.perf_counter()
-    B, optimal_val, x = optimize_stab_extent_T(n, True)
+    B, optimal_val, x = optimize_stab_extent_T(n, True, solver)
     np.save(f'data/{n}_qubit_soln', x)
     print(f'Time elapsed: {time.perf_counter() - start}')
