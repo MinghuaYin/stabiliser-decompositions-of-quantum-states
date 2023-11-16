@@ -1,9 +1,14 @@
 import math
+import pickle
 import time
 
 import cvxpy as cp
 import numpy as np
 import scipy.sparse as spr
+
+from F2_helper.F2_helper import fast_log2, int_to_array
+from stabiliser_state.Check_Matrix import Check_Matrix
+from typing import Tuple
 
 
 def ham(n: int) -> int:
@@ -16,14 +21,18 @@ def ham(n: int) -> int:
     return weight
 
 
-def optimize_stab_extent_T(n: int, print_output=False):
+def T_state(n):
+    exp_pi_i_over_4 = 1/math.sqrt(2) * (1 + 1j)
+    return 1/2**(n/2) * np.array([exp_pi_i_over_4 ** ham(i)
+                                  for i in range(2**n)], dtype=complex)
+
+
+def optimize_stab_extent_T(n: int, print_output=False) -> Tuple[np.ndarray, float, np.ndarray]:
     B = spr.load_npz(f'data/{n}_qubit_B.npz')
     num_stab_states, num_non_comp_stab_states = B.shape
 
-    exp_pi_i_over_4 = 1/math.sqrt(2) * (1 + 1j)
     c = np.zeros(num_stab_states, dtype=complex)
-    c[:2**n] = 1/2**(n/2) * np.array([exp_pi_i_over_4 ** ham(i)
-                                      for i in range(2**n)], dtype=complex)
+    c[:(1 << n)] = T_state(n)
     c = spr.csc_array(c).reshape((num_stab_states, 1))
 
     x_l1 = cp.Variable((num_non_comp_stab_states, 1), complex=True)
@@ -32,7 +41,7 @@ def optimize_stab_extent_T(n: int, print_output=False):
     # obj = cp.Minimize((B @ x_l1 + c).count_nonzero())  # TODO Stabilizer rank lol?
 
     prob = cp.Problem(obj)
-    solution = prob.solve(solver='GUROBI', verbose=True)
+    solution = prob.solve(solver='GUROBI', BarQCPConvTol=1e-10)  # verbose=True
 
     if print_output:
         print(f"status: {prob.status}")
@@ -44,9 +53,34 @@ def optimize_stab_extent_T(n: int, print_output=False):
     return B, obj.value, x_l1.value
 
 
-def more_precise_soln(x: np.ndarray):
-    nonzero_indices = np.nonzero(x)[0]
-    # TODO Finish
+def more_precise_soln(n: int, x: np.ndarray, non_stab_state: np.ndarray, rnd_dec: int = 3) -> Tuple[float, np.ndarray]:
+    with open(f'data/{n}_qubit_subgroups.data', 'rb') as reader:
+        xmatrs = pickle.load(reader)
+
+    B = spr.load_npz(f'data/{n}_qubit_B.npz')
+    num_stab_states = B.shape[0]
+
+    c = np.zeros(num_stab_states, dtype=complex)
+    c[:(1 << n)] = non_stab_state
+    c = spr.csc_array(c).reshape((num_stab_states, 1))
+
+    x_sparse = spr.csc_array(x)
+
+    nz_indices = round(c + B @ x_sparse, rnd_dec).nonzero()[0]
+    state_vectors = spr.csc_array((1 << n, len(nz_indices)), dtype=complex)
+    for j, index in enumerate(nz_indices):
+        basis_num = index // (1 << n)
+        signs = int_to_array(index % (1 << n), n)
+
+        sv = Check_Matrix.from_binary_matrix(
+            xmatrs[basis_num], signs).get_stabiliser_state().get_state_vector()
+        sv = sv / np.linalg.norm(sv)
+        state_vectors[:, j] = sv
+
+    soln = np.linalg.lstsq(state_vectors.toarray(),
+                           non_stab_state, rcond=None)[0]
+    extent = np.linalg.norm(soln, 1)**2
+    return extent, soln
 
 
 if __name__ == '__main__':

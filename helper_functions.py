@@ -6,7 +6,7 @@ import numba
 import pickle
 import time
 
-import F2_helper as f2
+import F2_helper.F2_helper as f2
 import multiprocessing as mp
 import numpy as np
 import scipy.sparse as spr
