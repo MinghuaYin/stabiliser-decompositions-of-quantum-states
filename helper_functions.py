@@ -328,17 +328,14 @@ def main_a():
 
     list_length = len(xmatr_list)
     print(f'{list_length = }')
-    num_of_stab_states = list_length * (1 << n)
 
     get_B_data(xmatr_list)
-    # spr.save_npz(f'data/{n}_qubit_B_a', B)  # TODO
     return B
 
 
-def init_worker(shared_hash_map, shared_B):
-    global hash_map, B
+def init_worker(shared_hash_map):
+    global hash_map
     hash_map = shared_hash_map
-    B = shared_B
 
 
 def update_data(data: List):
@@ -352,53 +349,40 @@ def update_data(data: List):
         child2_index = hash_map[str(child2[:, :-1])] * (1 << n) \
             + f2.array_to_int(child2[:, -1])
 
-        B[child1_index, col_num] = 1
-        B[child2_index, col_num] = rel_phase
-        B[col_num + (1 << n), col_num] = -sqrt2
-
         updated_data.append((col_num, child1_index, child2_index, rel_phase))
 
     return updated_data
 
 
+def all_data_generator():
+    with open(f'data/{n}_B_data.data', 'rb') as r2:
+        try:
+            while True:
+                yield pickle.load(r2)
+        except EOFError:
+            pass
+
+
 def main_b():
-    with open(f'data/{n}_qubit_hash_map.data', 'rb') as r1, \
-            open(f'data/{n}_B_data.data', 'rb') as r2:
+    with open(f'data/{n}_qubit_hash_map.data', 'rb') as r1:
         hash_map = pickle.load(r1)
         print(f'{len(hash_map) = }')
         num_of_stab_states = len(hash_map) * (1 << n)
         B = spr.dok_array((num_of_stab_states, num_of_stab_states - (1 << n)),
                           dtype=complex)
 
-        all_data = []
-        try:
-            while True:
-                data = pickle.load(r2)
-                print(f'{len(data) = }')
-                all_data.append(data)
-
-                # for result in results:
-                #     col_num, child1, child2, rel_phase = result
-                #     child1_index = hash_map[str(child1[:, :-1])] * (1 << n) \
-                #         + f2.array_to_int(child1[:, -1])
-                #     child2_index = hash_map[str(child2[:, :-1])] * (1 << n) \
-                #         + f2.array_to_int(child2[:, -1])
-
-                #     B[child1_index, col_num] = 1
-                #     B[child2_index, col_num] = rel_phase
-                #     B[col_num + (1 << n), col_num] = -sqrt2
-        except EOFError:
-            pass
-
-        with mp.Pool(initializer=init_worker, initargs=(hash_map, B)) \
-                as pool:
-            results = pool.imap_unordered(update_data, all_data, chunksize=100)
+        with mp.Pool(initializer=init_worker, initargs=(hash_map,)) as pool:
+            # open(f'data/{n}_B_updated_data.data', 'ab') as writer:
+            results = pool.imap_unordered(
+                update_data, all_data_generator(), chunksize=1)
             for updated_data in results:
+                # print(f'{len(updated_data) = }')
                 for col_num, child1_index, child2_index, rel_phase in updated_data:
-                    # print(child1_index)
                     B[child1_index, col_num] = 1
                     B[child2_index, col_num] = rel_phase
                     B[col_num + (1 << n), col_num] = -sqrt2
+                    # pickle.dump(
+                    #     (col_num, child1_index, child2_index, rel_phase), writer)
 
     return B.tocsc()
 
@@ -407,5 +391,5 @@ if __name__ == '__main__':
     start = time.perf_counter()
     # main_a()
     B = main_b()
-    spr.save_npz(f'data/{n}_qubit_B_a', B)
+    spr.save_npz(f'data/{n}_qubit_B', B)
     print(f'Time elapsed: {time.perf_counter() - start}')
