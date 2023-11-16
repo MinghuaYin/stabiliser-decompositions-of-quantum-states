@@ -367,30 +367,6 @@ def main():
     return B
 
 
-# -------- Helper functions for getting non-stabilizer states --------
-
-
-def get_dicke_state(n, weight):
-    """
-    Note: Dicke state is not normalized --- all nonzero elements are 1
-
-    """
-
-    dicke_state = np.zeros(1 << n, dtype=np.int8)
-    combos = combinations(range(n), weight)
-
-    for c in combos:
-        index_str = ''.join([('1' if i in c else '0') for i in range(n)])
-        index = int(index_str, 2)
-        dicke_state[index] = 1
-
-    return dicke_state
-
-
-def get_CCZ_state(n):
-    pass
-
-
 if __name__ == '__main__':
     start = time.perf_counter()
     B = main()
