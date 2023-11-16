@@ -2,6 +2,7 @@ import math
 import pickle
 import sys
 import time
+import traceback
 
 import cvxpy as cp
 import numpy as np
@@ -42,7 +43,8 @@ def dicke_state(n, weight) -> np.ndarray:
     return dicke_state / np.linalg.norm(dicke_state)
 
 
-def CCZ_state(n) -> np.ndarray:
+def CCZ_state(n_minus_1) -> np.ndarray:
+    n = n_minus_1 + 1
     return 1/2**(n/2) * np.array([1]*((1 << n)-1) + [-1], dtype=np.int8)
 
 
@@ -70,13 +72,17 @@ def optimize_stab_extent(state: np.ndarray, n: int, print_output=True, solver='G
 
     prob = cp.Problem(obj)
     eps = 1e-10
-    if solver == 'GUROBI':
-        solution = prob.solve(
-            solver='GUROBI', BarQCPConvTol=eps)  # verbose=True
-    elif solver == 'SCS':
-        solution = prob.solve(solver='SCS', eps=eps)  # verbose=True
-    elif solver == 'ECOS':
-        solution = prob.solve(solver='ECOS', reltol=eps)
+
+    try:
+        if solver == 'GUROBI':
+            solution = prob.solve(
+                solver='GUROBI', BarQCPConvTol=eps)  # verbose=True
+        elif solver == 'SCS':
+            solution = prob.solve(solver='SCS', eps=eps)  # verbose=True
+        elif solver == 'ECOS':
+            solution = prob.solve(solver='ECOS', reltol=1e-9)
+    except cp.SolverError:
+        traceback.print_exc()
 
     if print_output:
         print(f"status: {prob.status}")
