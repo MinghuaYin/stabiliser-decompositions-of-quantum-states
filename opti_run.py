@@ -18,7 +18,7 @@ with mp.Pool() as pool:
     for n in range(1, max_n + 1):
         T = State(f'T^{n}', op.T_state(n))
         dicke_states = [State(f'D_{n}^{k}', op.dicke_state(n, k))
-                        for k in range(1, n+1)]
+                        for k in range(1, n)]
         CCZ = State(f'CC^{n - 1}Z', op.CCZ_state(n-1))
         W = State(f'W_{n}', op.W_state(n))
         n_qubit_states = [T, CCZ, W] + dicke_states
@@ -29,9 +29,12 @@ with mp.Pool() as pool:
                               {'print_output': False, 'solver': 'ECOS', 'rnd_dec': 4}))
             for state in n_qubit_states]
 
-    print('State\t\tStabilizer extent')
-    print('---------------------------------')
+    print('State\t\tStabilizer extent squared\t(||old_soln||_1)^2')
+    print('-----------------------------------------------------------')
     for state, r in async_res:
-        extent, state_vectors, soln = r.get()
-        print(f'{state.name.ljust(8)}\t{extent: .8f}')
+        old_soln, extent, state_vectors, soln = r.get()
+        extent_str = '---' if extent is None else f'{extent**2: .8f}'
+        print(
+            f'{state.name.ljust(8)}\t{extent_str.ljust(10)}'
+            f'\t\t\t\t\t{np.linalg.norm(old_soln, 1)**2: .8f}')
         np.save(f'opti_data/{state.name}_state_vectors', state_vectors)
