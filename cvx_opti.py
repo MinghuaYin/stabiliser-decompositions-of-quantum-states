@@ -14,6 +14,8 @@ from itertools import combinations, product
 from stabiliser_state.Check_Matrix import Check_Matrix
 from typing import Tuple
 
+sqrt2 = 1.4142135623730950
+
 
 def ham(n: int) -> int:
     weight = 0
@@ -27,32 +29,26 @@ def ham(n: int) -> int:
 
 def T_state(n) -> np.ndarray:
     exp_pi_i_over_4 = 1/math.sqrt(2) * (1 + 1j)
-    return 1/2**(n/2) * np.array([exp_pi_i_over_4 ** ham(i)
-                                  for i in range(2**n)], dtype=complex)
+    return 1/sqrt2**n * np.array([exp_pi_i_over_4 ** ham(i)
+                                  for i in range(1 << n)], dtype=complex)
 
 
 def dicke_state(n, weight) -> np.ndarray:
-    dicke_state = np.zeros(1 << n, dtype=np.int8)
-    combos = combinations(range(n), weight)
-
-    for c in combos:
-        index_str = ''.join([('1' if i in c else '0') for i in range(n)])
-        index = int(index_str, 2)
-        dicke_state[index] = 1
-
+    dicke_state = np.array(
+        [1 if ham(i) == weight else 0 for i in range(1 << n)])
     return dicke_state / np.linalg.norm(dicke_state)
 
 
 def CCZ_state(n_minus_1) -> np.ndarray:
     n = n_minus_1 + 1
-    return 1/2**(n/2) * np.array([1]*((1 << n)-1) + [-1], dtype=np.int8)
+    return 1/sqrt2**n * np.array([1]*((1 << n)-1) + [-1])
 
 
 def W_state(n) -> np.ndarray:
     def g(x: Tuple[int]):
         return reduce(lambda a, b: a ^ b, x) + sum(x)
 
-    return 1/2**(n/2) * np.array([np.exp(1j * math.pi * g(x)/4)
+    return 1/sqrt2**n * np.array([np.exp(1j * math.pi * g(x)/4)
                                   for x in product((0, 1), repeat=n)], dtype=complex)
 
 
