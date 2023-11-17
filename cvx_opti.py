@@ -83,13 +83,16 @@ def optimize_stab_extent(state: np.ndarray, n: int, print_output=True, solver='G
 
     try:
         if solver == 'GUROBI':
-            prob.solve(solver='GUROBI', BarQCPConvTol=eps)  # verbose=True
+            prob.solve(solver='GUROBI', BarQCPConvTol=eps,
+                       verbose=print_output)
         elif solver == 'SCS':
-            prob.solve(solver='SCS', eps=eps)  # verbose=True
+            prob.solve(solver='SCS', eps=eps, verbose=print_output)
         elif solver == 'ECOS':
-            prob.solve(solver='ECOS', reltol=1e-9)
+            prob.solve(solver='ECOS', verbose=print_output)
     except cp.SolverError:
+        print(f'****Oh dear...****\n{state = }')
         traceback.print_exc()
+        print('********')
 
     if print_output:
         print(f"status: {prob.status}")
@@ -97,7 +100,7 @@ def optimize_stab_extent(state: np.ndarray, n: int, print_output=True, solver='G
         print(f"optimal objective value: {obj.value}")
         print(f'{obj.value**2 = }')
         # print(repr(x_l1.value))
-        print(f'{(4/(2 + math.sqrt(2)))**n = }')
+        # print(f'{(4/(2 + math.sqrt(2)))**n = }')
 
     return B, obj.value, x_l1.value
 
