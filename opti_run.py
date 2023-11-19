@@ -1,3 +1,5 @@
+import time
+
 import cvx_opti as op
 import multiprocessing as mp
 import numpy as np
@@ -12,6 +14,8 @@ class State():
         self.vector = vector
 
 
+start = time.perf_counter()
+
 with mp.Pool() as pool:
     async_res = []
 
@@ -22,19 +26,22 @@ with mp.Pool() as pool:
         CCZ = State(f'CC^{n - 1}Z', op.CCZ_state(n-1))
         W = State(f'W_{n}', op.W_state(n))
         n_qubit_states = [T, CCZ, W] + dicke_states
+        # n_qubit_states = [T]
 
         async_res += [
             (state,
              pool.apply_async(op.combine, (state.vector, n),
-                              {'print_output': False, 'solver': 'ECOS', 'rnd_dec': 4}))
+                              {'print_output': False, 'solver': 'GUROBI', 'rnd_dec': 4}))
             for state in n_qubit_states]
 
-    print('State\t\tStabilizer extent squared\t(||old_soln||_1)^2')
-    print('-----------------------------------------------------------')
+    to_print = 'State\t\t(||old_soln||_1)^2\t\tStabilizer extent squared\t\tTime elapsed\n' \
+               '-----------------------------------------------------------------------------------------------------\n'
     for state, r in async_res:
-        old_soln, extent, state_vectors, soln = r.get()
+        old_soln, extent, state_vectors, soln, time_elapsed = r.get()
         extent_str = '---' if extent is None else f'{extent**2: .8f}'
-        print(
-            f'{state.name.ljust(8)}\t{extent_str.ljust(10)}'
-            f'\t\t\t\t\t{np.linalg.norm(old_soln, 1)**2: .8f}')
+        to_print += f'{state.name.ljust(8)}\t\t{np.linalg.norm(old_soln, 1)**2: .8f}' \
+                    f'\t\t{extent_str.ljust(10)}\t\t\t\t{time_elapsed}\n'
         np.save(f'opti_data/{state.name}_state_vectors', state_vectors)
+    print(to_print)
+
+print(f'Time elapsed: {time.perf_counter() - start}')

@@ -355,6 +355,7 @@ def main_b(id):
             pass
 
         print(f'{len(hash_map) = }')
+        print(f'{len(partial_data) = }')
         num_of_stab_states = len(hash_map) * (1 << n)
         B = spr.dok_array((num_of_stab_states, num_of_stab_states - (1 << n)),
                           dtype=complex)

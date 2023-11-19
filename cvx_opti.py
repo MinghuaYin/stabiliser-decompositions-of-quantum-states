@@ -149,16 +149,23 @@ def combine(state, n, print_output=True, solver='GUROBI', rnd_dec=4):
     """
     Returns:
 
+    old_soln: np.ndarray
+
     extent: float
 
     state_vectors: np.ndarray
 
     soln: np.ndarray
 
+    time_elapsed = float
+
     """
 
+    start = time.perf_counter()
     B, optimal_val, x = optimize_stab_extent(state, n, print_output, solver)
-    return more_precise_soln(n, B, x, state, rnd_dec)
+    results = more_precise_soln(n, B, x, state, rnd_dec)
+    # print(f'Time elapsed for {state = }: {time.perf_counter() - start}')
+    return *results, time.perf_counter() - start
 
 
 if __name__ == '__main__':

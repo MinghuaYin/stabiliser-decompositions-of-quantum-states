@@ -330,7 +330,6 @@ def main_a():
     print(f'{list_length = }')
 
     get_B_data(xmatr_list)
-    return B
 
 
 def init_worker(shared_hash_map):

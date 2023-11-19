@@ -1,20 +1,58 @@
-State		Stabilizer extent squared	(||old_soln||_1)^2
------------------------------------------------------------
-T^1     	 1.17157288					 1.17157288
-CC^0Z   	 1.00000000					 1.00000000
-W_1     	 1.00000000					 1.00000000
-T^2     	 1.37258300					 1.37258300
-CC^1Z   	 1.00000000					 1.00000000
-W_2     	 1.60000001					 1.60000000
-D_2^1   	 1.00000000					 1.00000000
-T^3     	 1.60808101					 1.60808102
-CC^2Z   	 4.00000000					 1.77777778
-W_3     	 4.00000000					 1.77777778
-D_3^1   	---       					 1.33333333
-D_3^2   	---       					 1.33333333
-T^4     	 1.88398410					 1.88398431
-CC^3Z   	 2.25000000					 2.25000002
-W_4     	 4.80120121					 2.20689656
-D_4^1   	---       					 1.77777778
-D_4^2   	---       					 1.33333333
-D_4^3   	---       					 1.77777778
+Set parameter Username
+Set parameter Username
+Set parameter Username
+Academic license - for non-commercial use only - expires 2024-11-09
+Academic license - for non-commercial use only - expires 2024-11-09
+Academic license - for non-commercial use only - expires 2024-11-09
+Set parameter Username
+Academic license - for non-commercial use only - expires 2024-11-09
+Set parameter Username
+Set parameter Username
+Set parameter Username
+Academic license - for non-commercial use only - expires 2024-11-09
+Academic license - for non-commercial use only - expires 2024-11-09
+Academic license - for non-commercial use only - expires 2024-11-09
+Set parameter Username
+Academic license - for non-commercial use only - expires 2024-11-09
+Set parameter Username
+Academic license - for non-commercial use only - expires 2024-11-09
+Set parameter Username
+Set parameter Username
+Set parameter Username
+Academic license - for non-commercial use only - expires 2024-11-09
+Academic license - for non-commercial use only - expires 2024-11-09
+Academic license - for non-commercial use only - expires 2024-11-09
+Set parameter Username
+Academic license - for non-commercial use only - expires 2024-11-09
+Set parameter Username
+Academic license - for non-commercial use only - expires 2024-11-09
+Set parameter Username
+Academic license - for non-commercial use only - expires 2024-11-09
+Set parameter Username
+Set parameter Username
+Academic license - for non-commercial use only - expires 2024-11-09
+Academic license - for non-commercial use only - expires 2024-11-09
+Set parameter Username
+Academic license - for non-commercial use only - expires 2024-11-09
+State		(||old_soln||_1)^2		Stabilizer extent squared		Time elapsed
+-----------------------------------------------------------------------------------------------------
+T^1     		 1.17157288		 1.17157288				0.385752426000181
+CC^0Z   		 1.00000000		 1.00000000				0.3798513510000703
+W_1     		 1.00000000		 1.00000000				0.4060404580004615
+T^2     		 1.37258300		 1.37258300				0.4823418830001174
+CC^1Z   		 1.00000000		 1.00000000				0.37939279199963494
+W_2     		 1.60000000		 1.60000001				0.5209023549996346
+D_2^1   		 1.00000000		 1.00000000				0.5394234380000853
+T^3     		 1.60808101		 1.60808101				0.5861125519995767
+CC^2Z   		 1.77777778		 4.00000000				0.6608002420007324
+W_3     		 1.77777778		 4.00000000				0.7445474859996466
+D_3^1   		 1.33333333		---       				0.6877402399995844
+D_3^2   		 1.33333333		---       				0.7486091350001516
+T^4     		 1.88398410		 1.88398410				20.119913773000007
+CC^3Z   		 2.25000001		 2.25000000				28.011771167000006
+W_4     		 2.20689659		 4.80120121				21.951982466000118
+D_4^1   		 1.77777778		---       				20.355188275999353
+D_4^2   		 1.33333333		---       				22.216750065999804
+D_4^3   		 1.77777778		---       				23.15625577099945
+
+Time elapsed: 28.085678716000075
