@@ -12,7 +12,7 @@ import numpy as np
 import scipy.sparse as spr
 
 from functools import reduce
-from itertools import combinations, product
+from itertools import count, product
 from typing import List, Tuple
 
 n = 6

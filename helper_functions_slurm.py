@@ -13,7 +13,7 @@ import numpy as np
 import scipy.sparse as spr
 
 from functools import reduce
-from itertools import combinations, product
+from itertools import count, product
 from typing import List, Tuple
 
 n = 6
@@ -343,12 +343,12 @@ def update_data(data: List, hash_map: dict):
         yield (col_num, child1_index, child2_index, rel_phase)
 
 
-def main_b(id):
+def main_b(task_id):
     with open(f'data/{n}_qubit_hash_map.data', 'rb') as r1, \
             open(f'data/{n}_B_data.data', 'rb') as r2:
         hash_map = pickle.load(r1)
         try:
-            for _ in range(id):
+            for _ in range(task_id):
                 pickle.load(r2)
             partial_data = pickle.load(r2)
         except EOFError:
@@ -366,13 +366,25 @@ def main_b(id):
             B[child2_index, col_num] = rel_phase
             B[col_num + (1 << n), col_num] = -sqrt2
 
+    return B
+
+
+def main_c(num_of_stab_states):
+    B = spr.dok_array((num_of_stab_states, num_of_stab_states - (1 << n)),
+                      dtype=complex)
+    for i in range(30):
+        B_partial = spr.load_npz(f'data/{n}_qubit_B_{i}.npz')
+        for k, v in B_partial.items():
+            B[k] = v
+
     return B.tocsc()
 
 
 if __name__ == '__main__':
-    id = int(sys.argv[1])
+    # task_id = int(sys.argv[1])
     start = time.perf_counter()
     # main_a()
-    B = main_b(id)
-    spr.save_npz(f'data/{n}_qubit_B_{id}', B)
+    # B = main_b(task_id)
+    B = main_c(315057600)
+    spr.save_npz(f'data/{n}_qubit_B', B)
     print(f'Time elapsed: {time.perf_counter() - start}')

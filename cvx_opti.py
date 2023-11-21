@@ -133,11 +133,14 @@ def more_precise_soln(n: int, B: spr.sparray, x: np.ndarray,
 
     # TODO There's a bug here somewhere... :/
     soln_var = cp.Variable((state_vectors.shape[1], 1), complex=True)
+    soln_var.value = old_soln[nz_indices, [0]].reshape(
+        (state_vectors.shape[1], 1))
     obj = cp.Minimize(cp.norm(soln_var, 1))
     constrs = [state_vectors @ soln_var == non_stab_state.reshape((1 << n, 1))]
     prob = cp.Problem(obj, constrs)
 
     prob.solve(solver='ECOS')
+    prob.solve
     extent = obj.value
     # if extent is None:
     #     pass
