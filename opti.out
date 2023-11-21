@@ -1,58 +1,58 @@
 Set parameter Username
 Set parameter Username
 Set parameter Username
-Academic license - for non-commercial use only - expires 2024-11-09
-Academic license - for non-commercial use only - expires 2024-11-09
-Academic license - for non-commercial use only - expires 2024-11-09
-Set parameter Username
-Academic license - for non-commercial use only - expires 2024-11-09
-Set parameter Username
-Set parameter Username
 Set parameter Username
 Academic license - for non-commercial use only - expires 2024-11-09
 Academic license - for non-commercial use only - expires 2024-11-09
 Academic license - for non-commercial use only - expires 2024-11-09
 Set parameter Username
 Academic license - for non-commercial use only - expires 2024-11-09
-Set parameter Username
-Academic license - for non-commercial use only - expires 2024-11-09
-Set parameter Username
-Set parameter Username
-Set parameter Username
-Academic license - for non-commercial use only - expires 2024-11-09
-Academic license - for non-commercial use only - expires 2024-11-09
-Academic license - for non-commercial use only - expires 2024-11-09
-Set parameter Username
-Academic license - for non-commercial use only - expires 2024-11-09
-Set parameter Username
 Academic license - for non-commercial use only - expires 2024-11-09
 Set parameter Username
 Academic license - for non-commercial use only - expires 2024-11-09
 Set parameter Username
 Set parameter Username
 Academic license - for non-commercial use only - expires 2024-11-09
+Academic license - for non-commercial use only - expires 2024-11-09
+Set parameter Username
+Set parameter Username
+Set parameter Username
+Set parameter Username
+Academic license - for non-commercial use only - expires 2024-11-09
+Academic license - for non-commercial use only - expires 2024-11-09
+Academic license - for non-commercial use only - expires 2024-11-09
+Academic license - for non-commercial use only - expires 2024-11-09
+Set parameter Username
+Academic license - for non-commercial use only - expires 2024-11-09
+Set parameter Username
+Academic license - for non-commercial use only - expires 2024-11-09
+Set parameter Username
+Academic license - for non-commercial use only - expires 2024-11-09
+Set parameter Username
+Academic license - for non-commercial use only - expires 2024-11-09
+Set parameter Username
 Academic license - for non-commercial use only - expires 2024-11-09
 Set parameter Username
 Academic license - for non-commercial use only - expires 2024-11-09
 State		(||old_soln||_1)^2		Stabilizer extent squared		Time elapsed
 -----------------------------------------------------------------------------------------------------
-T^1     		 1.17157288		 1.17157288				0.385752426000181
-CC^0Z   		 1.00000000		 1.00000000				0.3798513510000703
-W_1     		 1.00000000		 1.00000000				0.4060404580004615
-T^2     		 1.37258300		 1.37258300				0.4823418830001174
-CC^1Z   		 1.00000000		 1.00000000				0.37939279199963494
-W_2     		 1.60000000		 1.60000001				0.5209023549996346
-D_2^1   		 1.00000000		 1.00000000				0.5394234380000853
-T^3     		 1.60808101		 1.60808101				0.5861125519995767
-CC^2Z   		 1.77777778		 4.00000000				0.6608002420007324
-W_3     		 1.77777778		 4.00000000				0.7445474859996466
-D_3^1   		 1.33333333		---       				0.6877402399995844
-D_3^2   		 1.33333333		---       				0.7486091350001516
-T^4     		 1.88398410		 1.88398410				20.119913773000007
-CC^3Z   		 2.25000001		 2.25000000				28.011771167000006
-W_4     		 2.20689659		 4.80120121				21.951982466000118
-D_4^1   		 1.77777778		---       				20.355188275999353
-D_4^2   		 1.33333333		---       				22.216750065999804
-D_4^3   		 1.77777778		---       				23.15625577099945
+T^1     		 1.17157288		 1.17157288				0.38610729100037133
+CC^0Z   		 1.00000000		 1.00000000				0.3860331679998126
+W_1     		 1.00000000		 1.00000000				0.5114564750001591
+T^2     		 1.37258300		 1.37258300				0.5193070850000367
+CC^1Z   		 1.00000000		 1.00000000				0.39200464799978363
+W_2     		 1.60000000		 1.60000001				0.39657709800030716
+D_2^1   		 1.00000000		 1.00000000				0.4012571610001032
+T^3     		 1.60808101		 1.60808101				0.608501659000467
+CC^2Z   		 1.77777778		 4.00000000				0.8981444560004093
+W_3     		 1.77777778		 4.00000000				0.8798333529994125
+D_3^1   		 1.33333333		---       				0.8368930679998812
+D_3^2   		 1.33333333		---       				0.7850562900002842
+T^4     		 1.88398410		 1.88398410				23.981005816000106
+CC^3Z   		 2.25000001		 2.25000000				33.69695098699958
+W_4     		 2.20689659		 4.80120121				24.267842313000074
+D_4^1   		 1.77777778		---       				24.217453201000353
+D_4^2   		 1.33333333		---       				23.626080224999896
+D_4^3   		 1.77777778		---       				23.285760316999585
 
-Time elapsed: 28.085678716000075
+Time elapsed: 33.7683341209995

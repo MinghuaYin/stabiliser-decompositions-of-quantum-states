@@ -166,3 +166,4 @@ data/*_B_data.data
 data/*_hash_map.data
 data/*.out
 opti_data/
+B_data/
