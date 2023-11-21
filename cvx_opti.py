@@ -52,8 +52,8 @@ def W_state(n) -> np.ndarray:
                                   for x in product((0, 1), repeat=n)], dtype=complex)
 
 
-def optimize_stab_extent(state: np.ndarray, n: int, print_output=True, solver='GUROBI') -> \
-        Tuple[spr.sparray, float, np.ndarray]:
+def optimize_stab_extent(state: np.ndarray, n: int, print_output=True,
+                         solver='GUROBI', do_complex=True) -> Tuple[spr.sparray, float, np.ndarray]:
     """
 
     Returns
@@ -66,14 +66,16 @@ def optimize_stab_extent(state: np.ndarray, n: int, print_output=True, solver='G
 
     """
 
-    B = spr.load_npz(f'data/{n}_qubit_B.npz')
+    filename = f'data/{n}_qubit_B.npz' if do_complex \
+        else f'data/{n}_qubit_B_real.npz'
+    B = spr.load_npz(filename)
     num_stab_states, num_non_comp_stab_states = B.shape
 
-    c = np.zeros(num_stab_states, dtype=complex)
+    c = np.zeros(num_stab_states, dtype=(complex if do_complex else float))
     c[:(1 << n)] = state
     c = spr.csc_array(c).reshape((num_stab_states, 1))
 
-    x_l1 = cp.Variable((num_non_comp_stab_states, 1), complex=True)
+    x_l1 = cp.Variable((num_non_comp_stab_states, 1), complex=do_complex)
 
     obj = cp.Minimize(cp.norm(B @ x_l1 + c, 1))
     # obj = cp.Minimize((B @ x_l1 + c).count_nonzero())  # TODO Stabilizer rank lol?
@@ -139,16 +141,13 @@ def more_precise_soln(n: int, B: spr.sparray, x: np.ndarray,
     constrs = [state_vectors @ soln_var == non_stab_state.reshape((1 << n, 1))]
     prob = cp.Problem(obj, constrs)
 
-    prob.solve(solver='ECOS')
-    prob.solve
+    prob.solve(solver='GUROBI', warm_start=True)
     extent = obj.value
-    # if extent is None:
-    #     pass
     soln = soln_var.value
     return old_soln.toarray(), extent, state_vectors, soln
 
 
-def combine(state, n, print_output=True, solver='GUROBI', rnd_dec=4):
+def combine(state, n, print_output=True, solver='GUROBI', rnd_dec=4, do_complex=True):
     """
     Returns:
 
@@ -165,26 +164,8 @@ def combine(state, n, print_output=True, solver='GUROBI', rnd_dec=4):
     """
 
     start = time.perf_counter()
-    B, optimal_val, x = optimize_stab_extent(state, n, print_output, solver)
+    B, extent, x = optimize_stab_extent(state, n, print_output,
+                                        solver, do_complex)
     results = more_precise_soln(n, B, x, state, rnd_dec)
     # print(f'Time elapsed for {state = }: {time.perf_counter() - start}')
     return *results, time.perf_counter() - start
-
-
-if __name__ == '__main__':
-    # n = int(sys.argv[1])
-    # solver = 'GUROBI' if len(sys.argv) == 2 else sys.argv[2]
-
-    start = time.perf_counter()
-    optimize_stab_extent(T_state(2), 2, solver='GUROBI')
-    print(f'Time elapsed: {time.perf_counter() - start}')
-
-    start = time.perf_counter()
-    optimize_stab_extent(T_state(2), 2, solver='ECOS')
-    print(f'Time elapsed: {time.perf_counter() - start}')
-
-    # print(f'{n = }')
-    # start = time.perf_counter()
-    # B, optimal_val, x = optimize_stab_extent(T_state(n), n, True, solver)
-    # np.save(f'data/{n}_qubit_soln', x)
-    # print(f'Time elapsed: {time.perf_counter() - start}')

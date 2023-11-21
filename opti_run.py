@@ -25,13 +25,14 @@ with mp.Pool() as pool:
                         for k in range(1, n)]
         CCZ = State(f'CC^{n - 1}Z', op.CCZ_state(n-1))
         W = State(f'W_{n}', op.W_state(n))
-        n_qubit_states = [T, CCZ, W] + dicke_states
-        # n_qubit_states = [T]
+        # n_qubit_states = [T, CCZ, W] + dicke_states
+        n_qubit_states = [CCZ] + dicke_states
 
         async_res += [
             (state,
              pool.apply_async(op.combine, (state.vector, n),
-                              {'print_output': False, 'solver': 'GUROBI', 'rnd_dec': 4}))
+                              {'print_output': False, 'solver': 'GUROBI',
+                               'rnd_dec': 4, 'do_complex': False}))
             for state in n_qubit_states]
 
     to_print = 'State\t\t(||old_soln||_1)^2\t\tStabilizer extent squared\t\tTime elapsed\n' \
