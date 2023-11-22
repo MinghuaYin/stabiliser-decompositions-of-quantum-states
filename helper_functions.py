@@ -277,6 +277,16 @@ def find_B_data_for_one_xmatr(args) -> List:
 
     index : int
 
+    Results
+    -------
+    results : List
+        Consists of tuples of the form
+
+        col_num : int
+        child1 : np.ndarray
+        child2 : np.ndarray
+        rel_phase : complex
+
     """
 
     xmatr, n, index = args
@@ -295,100 +305,3 @@ def find_B_data_for_one_xmatr(args) -> List:
         results.append((col_num, child1, child2, rel_phase))
 
     return results
-
-
-def get_B_data(xmatr_list: List[np.ndarray]):
-    """
-    Get a basis of triples in matrix form given a list of (not augmented)
-    check matrices that have been ordered by increasing support size.
-
-    """
-
-    with mp.Pool() as pool, \
-            open(f'data/{n}_B_data.data', 'ab') as writer:
-        lists_of_results = pool.imap_unordered(
-            find_B_data_for_one_xmatr,
-            ((xmatr, n, index)
-             for index, xmatr in enumerate(xmatr_list[1:])),
-            chunksize=100)
-
-        B_data = []
-        for results in lists_of_results:
-            B_data += results
-            if len(B_data) >= 100_000:
-                pickle.dump(B_data, writer)
-                B_data = []
-
-        pickle.dump(B_data, writer)
-
-
-def main_a():
-    with open(f'data/{n}_qubit_subgroups.data', 'rb') as r1:
-        xmatr_list = pickle.load(r1)
-
-    list_length = len(xmatr_list)
-    print(f'{list_length = }')
-
-    get_B_data(xmatr_list)
-
-
-def init_worker(shared_hash_map):
-    global hash_map
-    hash_map = shared_hash_map
-
-
-def update_data(data: List):
-    global hash_map
-
-    updated_data = []
-
-    for col_num, child1, child2, rel_phase in data:
-        child1_index = hash_map[str(child1[:, :-1])] * (1 << n) \
-            + f2.array_to_int(child1[:, -1])
-        child2_index = hash_map[str(child2[:, :-1])] * (1 << n) \
-            + f2.array_to_int(child2[:, -1])
-
-        updated_data.append((col_num, child1_index, child2_index, rel_phase))
-
-    return updated_data
-
-
-def all_data_generator():
-    with open(f'data/{n}_B_data.data', 'rb') as r2:
-        try:
-            while True:
-                yield pickle.load(r2)
-        except EOFError:
-            pass
-
-
-def main_b():
-    with open(f'data/{n}_qubit_hash_map.data', 'rb') as r1:
-        hash_map = pickle.load(r1)
-        print(f'{len(hash_map) = }')
-        num_of_stab_states = len(hash_map) * (1 << n)
-        B = spr.dok_array((num_of_stab_states, num_of_stab_states - (1 << n)),
-                          dtype=complex)
-
-        with mp.Pool(initializer=init_worker, initargs=(hash_map,)) as pool:
-            # open(f'data/{n}_B_updated_data.data', 'ab') as writer:
-            results = pool.imap_unordered(
-                update_data, all_data_generator(), chunksize=1)
-            for updated_data in results:
-                # print(f'{len(updated_data) = }')
-                for col_num, child1_index, child2_index, rel_phase in updated_data:
-                    B[child1_index, col_num] = 1
-                    B[child2_index, col_num] = rel_phase
-                    B[col_num + (1 << n), col_num] = -sqrt2
-                    # pickle.dump(
-                    #     (col_num, child1_index, child2_index, rel_phase), writer)
-
-    return B.tocsc()
-
-
-if __name__ == '__main__':
-    start = time.perf_counter()
-    # main_a()
-    B = main_b()
-    spr.save_npz(f'data/{n}_qubit_B', B)
-    print(f'Time elapsed: {time.perf_counter() - start}')

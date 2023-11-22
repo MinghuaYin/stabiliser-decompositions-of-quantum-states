@@ -164,6 +164,7 @@ data/4_qubit_B.csv
 data/6_qubit_subgroups.data
 data/6_qubit_B*
 data/6_nzi*
+data/6_B*
 data/*_B_data.data
 data/*_hash_map.data
 data/*.out
