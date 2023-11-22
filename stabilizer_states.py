@@ -530,4 +530,4 @@ def get_stab_state_matrix(n):
 
 
 if __name__ == '__main__':
-    five_qubit_stabs = get_stabiliser_states(5)
+    five_qubit_stabs = get_stabiliser_states(4)

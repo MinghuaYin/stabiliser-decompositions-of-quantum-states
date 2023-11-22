@@ -19,7 +19,7 @@ start = time.perf_counter()
 with mp.Pool() as pool:
     async_res = []
 
-    for n in range(1, max_n + 1):
+    for n in range(3, max_n + 1):
         T = State(f'T^{n}', op.T_state(n))
         dicke_states = [State(f'D_{n}^{k}', op.dicke_state(n, k))
                         for k in range(1, n)]
