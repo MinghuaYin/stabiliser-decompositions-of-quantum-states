@@ -19,7 +19,6 @@ from typing import List, Tuple
 
 from helper_functions import *
 
-n = 6
 # tail = ''
 tail = '_real'
 
@@ -53,7 +52,6 @@ def get_B_data():
                 B_data = []
 
         pickle.dump(B_data, writer)
-    return B_data
 
 
 def update_data(data: List, hash_map: dict):
@@ -66,6 +64,11 @@ def update_data(data: List, hash_map: dict):
 
 
 def get_dict_form_data():
+    """
+    Get a dictionary of data that is ready to be inserted into a sparse matrix.
+
+    """
+
     # TODO Multiprocessing?
     with open(f'data/{n}_qubit_hash_map{tail}.data', 'rb') as r1, \
             open(f'data/{n}_B_data{tail}.data', 'rb') as r2:
@@ -77,39 +80,38 @@ def get_dict_form_data():
         except EOFError:
             pass
 
-        print(f'{len(hash_map) = }')
-        print(f'{len(partial_data) = }')
+    print(f'{len(hash_map) = }')
+    print(f'{len(partial_data) = }')
 
-        big_dict = {}
+    big_dict = {}
 
-        for col_num, child1_index, child2_index, rel_phase \
-                in update_data(partial_data, hash_map):
-            big_dict[(child1_index, col_num)] = 1
-            big_dict[(child2_index, col_num)] = rel_phase
-            big_dict[(col_num + (1 << n), col_num)] = -sqrt2
+    for col_num, child1_index, child2_index, rel_phase \
+            in update_data(partial_data, hash_map):
+        big_dict[(child1_index, col_num)] = 1
+        big_dict[(child2_index, col_num)] = rel_phase
+        big_dict[(col_num + (1 << n), col_num)] = -sqrt2
 
-        with open(f'data/{n}_qubit_dict_form{tail}.data', 'wb') as w:
-            pickle.dump(big_dict, w)
+    with open(f'data/{n}_qubit_dict_form{tail}.data', 'wb') as w:
+        pickle.dump(big_dict, w)
 
 
-def main(num_of_stab_states):
+def from_dict_form_data(num_of_stab_states):
+    dtype = float if tail == '_real' else complex
     B = spr.dok_array((num_of_stab_states, num_of_stab_states - (1 << n)),
-                      dtype=complex)
-    for i in range(2):
-        B_partial = spr.load_npz(f'data/{n}_qubit_B_c_{i}.npz').todok()
-        for k, v in B_partial.items():
-            B[k] = v
-        del B_partial
-        gc.collect()
+                      dtype=dtype)
 
-    return B.tocsc()
+    with open(f'data/{n}_qubit_dict_form{tail}.data', 'rb') as r:
+        big_dict = pickle.load(r)
+
+    for k, v in big_dict.items():
+        B[k] = v
+
+    B = B.tocsc()
+    spr.save_npz(f'data/{n}_qubit_B{tail}_stabs', B)
+    return B
 
 
 if __name__ == '__main__':
-    # task_id = int(sys.argv[1])
-    # start = time.perf_counter()
-    # B = main(315057600)
-    # spr.save_npz(f'data/{n}_qubit_B', B)
-    # print(f'Time elapsed: {time.perf_counter() - start}')
-
-    get_B_data()
+    # get_B_data()
+    # get_dict_form_data()
+    from_dict_form_data(146880)

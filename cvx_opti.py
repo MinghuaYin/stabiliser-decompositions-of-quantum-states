@@ -67,7 +67,7 @@ def optimize_stab_extent(state: np.ndarray, n: int, print_output=True,
     """
 
     filename = f'data/{n}_qubit_B.npz' if do_complex \
-        else f'data/{n}_qubit_B_real.npz'
+        else f'data/{n}_qubit_B_real_stabs.npz'
     B = spr.load_npz(filename)
     num_stab_states, num_non_comp_stab_states = B.shape
 
@@ -108,21 +108,23 @@ def optimize_stab_extent(state: np.ndarray, n: int, print_output=True,
 
 
 def more_precise_soln(n: int, B: spr.sparray, x: np.ndarray,
-                      non_stab_state: np.ndarray, rnd_dec: int = 4) -> Tuple[np.ndarray, float, np.ndarray, np.ndarray]:
+                      non_stab_state: np.ndarray, rnd_dec=4, do_complex=False) -> \
+        Tuple[np.ndarray, float, np.ndarray, np.ndarray]:
     with open(f'data/{n}_qubit_subgroups.data', 'rb') as reader:
         xmatrs = pickle.load(reader)
 
     num_stab_states = B.shape[0]
 
-    c = np.zeros(num_stab_states, dtype=complex)
+    c = np.zeros(num_stab_states, dtype=(complex if do_complex else float))
     c[:(1 << n)] = non_stab_state
     c = spr.csc_array(c).reshape((num_stab_states, 1))
 
-    x_sparse = spr.csc_array(x, dtype=complex)
+    x_sparse = spr.csc_array(x, dtype=(complex if do_complex else float))
     old_soln = c + B @ x_sparse
 
     nz_indices = round(old_soln, rnd_dec).nonzero()[0]
-    state_vectors = spr.dok_array((1 << n, len(nz_indices)), dtype=complex)
+    state_vectors = spr.dok_array(
+        (1 << n, len(nz_indices)), dtype=(complex if do_complex else float))
     for j, index in enumerate(nz_indices):
         basis_num = index // (1 << n)
         signs = int_to_array(index % (1 << n), n)
@@ -134,7 +136,7 @@ def more_precise_soln(n: int, B: spr.sparray, x: np.ndarray,
     state_vectors = state_vectors.toarray()
 
     # TODO There's a bug here somewhere... :/
-    soln_var = cp.Variable((state_vectors.shape[1], 1), complex=True)
+    soln_var = cp.Variable((state_vectors.shape[1], 1), complex=do_complex)
     soln_var.value = old_soln[nz_indices, [0]].reshape(
         (state_vectors.shape[1], 1))
     obj = cp.Minimize(cp.norm(soln_var, 1))
@@ -166,6 +168,6 @@ def combine(state, n, print_output=True, solver='GUROBI', rnd_dec=4, do_complex=
     start = time.perf_counter()
     B, extent, x = optimize_stab_extent(state, n, print_output,
                                         solver, do_complex)
-    results = more_precise_soln(n, B, x, state, rnd_dec)
+    results = more_precise_soln(n, B, x, state, rnd_dec, do_complex)
     # print(f'Time elapsed for {state = }: {time.perf_counter() - start}')
     return *results, time.perf_counter() - start
