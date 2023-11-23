@@ -4,7 +4,7 @@ import cvx_opti as op
 import multiprocessing as mp
 import numpy as np
 
-max_n = 4
+max_n = 6
 # max_n = 6
 
 
@@ -19,12 +19,12 @@ start = time.perf_counter()
 with mp.Pool() as pool:
     async_res = []
 
-    for n in range(3, max_n + 1):
-        T = State(f'T^{n}', op.T_state(n))
+    for n in range(6, max_n + 1):
+        # T = State(f'T^{n}', op.T_state(n))
         dicke_states = [State(f'D_{n}^{k}', op.dicke_state(n, k))
                         for k in range(1, n)]
         CCZ = State(f'CC^{n - 1}Z', op.CCZ_state(n-1))
-        W = State(f'W_{n}', op.W_state(n))
+        # W = State(f'W_{n}', op.W_state(n))
         # n_qubit_states = [T, CCZ, W] + dicke_states
         n_qubit_states = [CCZ] + dicke_states
 
@@ -42,7 +42,8 @@ with mp.Pool() as pool:
         extent_str = '---' if extent is None else f'{extent**2: .8f}'
         to_print += f'{state.name.ljust(8)}\t\t{np.linalg.norm(old_soln, 1)**2: .8f}' \
                     f'\t\t{extent_str.ljust(10)}\t\t\t\t{time_elapsed}\n'
-        # np.save(f'opti_data/{state.name}_state_vectors', state_vectors)
+        np.save(f'opti_data/{state.name}_state_vectors', state_vectors)
+        np.save(f'opti_data/{state.name}_coeffs', old_soln)
     print(to_print)
 
 print(f'Time elapsed: {time.perf_counter() - start}')
