@@ -19,8 +19,8 @@ from typing import List, Tuple
 
 from helper_functions import *
 
-# tail = ''
-tail = '_real'
+tail = ''
+# tail = '_real'
 
 
 def get_B_data():
@@ -112,6 +112,6 @@ def from_dict_form_data(num_of_stab_states):
 
 
 if __name__ == '__main__':
-    # get_B_data()
-    # get_dict_form_data()
-    from_dict_form_data(146880)
+    get_B_data()
+    get_dict_form_data()
+    # from_dict_form_data(315057600)

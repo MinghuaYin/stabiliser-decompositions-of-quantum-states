@@ -21,7 +21,7 @@ with mp.Pool() as pool:
 
     for n in range(6, max_n + 1):
         # T = State(f'T^{n}', op.T_state(n))
-        dicke_states = [State(f'D_{n}^{k}', op.dicke_state(n, k))
+        dicke_states = [State(f'D^{n}_{k}', op.dicke_state(n, k))
                         for k in range(1, n)]
         CCZ = State(f'CC^{n - 1}Z', op.CCZ_state(n-1))
         # W = State(f'W_{n}', op.W_state(n))

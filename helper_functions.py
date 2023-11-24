@@ -15,7 +15,7 @@ from functools import reduce
 from itertools import count, product
 from typing import List, Tuple
 
-n = 5
+n = 6
 
 sqrt2 = 1.4142135623730950
 
