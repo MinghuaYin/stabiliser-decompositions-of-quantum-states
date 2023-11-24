@@ -143,7 +143,7 @@ def more_precise_soln(n: int, B: spr.sparray, x: np.ndarray,
     constrs = [state_vectors @ soln_var == non_stab_state.reshape((1 << n, 1))]
     prob = cp.Problem(obj, constrs)
 
-    prob.solve(solver='GUROBI', warm_start=True)
+    prob.solve(solver='GUROBI', warm_start=True, reoptimize=True)
     extent = obj.value
     soln = soln_var.value
     return old_soln.toarray(), extent, state_vectors, soln
