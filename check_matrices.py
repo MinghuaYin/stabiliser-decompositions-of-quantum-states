@@ -17,6 +17,7 @@ def np_block(X):
 
 # ***** EDIT THIS BEFORE RUNNING *****
 n = 7
+just_the_reals = True
 
 O = np.zeros((n, n), dtype=np.int8)
 I = np.eye(n, dtype=np.int8)
@@ -199,17 +200,19 @@ def generate_top_right(tl: np.ndarray, nonzero_cols: List,
     for cand_row_nzs in it.product((0, 1), repeat=len(nonzero_cols)):
         cand_row = np.zeros(n, dtype=np.int8)
         cand_row[nonzero_cols] = cand_row_nzs
+
         if all(np.array_equiv(np.dot(tl[i, :], cand_row) % 2,
                               np.dot(tl[next_row_index, :], temp[i, :]) % 2)
                for i in range(next_row_index)):
-            # TODO Filter real stab state xmatrs
-
-            temp[next_row_index, :] = cand_row
-            if next_row_index == tl.shape[0] - 1:
-                yield np.copy(temp)
-            else:
-                yield from generate_top_right(tl, nonzero_cols, np.copy(temp),
-                                              next_row_index + 1)
+            # If just_the_reals is True, filter real stab state xmatrs
+            if not just_the_reals or \
+                    np.dot(tl[next_row_index, :], cand_row) % 2 == 0:
+                temp[next_row_index, :] = cand_row
+                if next_row_index == tl.shape[0] - 1:
+                    yield np.copy(temp)
+                else:
+                    yield from generate_top_right(tl, nonzero_cols, np.copy(temp),
+                                                  next_row_index + 1)
 
 
 def top_right_wrapper(args):
@@ -240,8 +243,11 @@ def generate_top_right_full_support(temp=np.zeros((n, n), dtype=np.int8),
                                                        next_row_index + 1)
 
 
-def finish(merged_mats: Sequence[Tuple[np.ndarray, Tuple, List]]):
+def finish():
     start_time = time.perf_counter()
+
+    with open(f'data/{n}_qubit_bottom_right.data', 'rb') as reader:
+        merged_mats = pickle.load(reader)
 
     xmatrs = []
 
@@ -314,9 +320,9 @@ def filter_real_stabs(xmatrs: List[np.ndarray]):
 
 if __name__ == '__main__':
     # top_lefts = get_top_left()
-    merged_mats = get_bottom_right_and_merge()
-    print(len(merged_mats))
-    # last_xmatrs = finish(merged_mats)
+    # merged_mats = get_bottom_right_and_merge()
+    # print(len(merged_mats))
+    last_xmatrs = finish()
 
     # unpolished_xmatrs = []
     # with open(f'data/{n}_qubit_subgroups.data', 'rb') as reader:
