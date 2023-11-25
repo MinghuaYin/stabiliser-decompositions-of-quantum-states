@@ -53,6 +53,8 @@ def get_B_data():
 
         pickle.dump(B_data, writer)
 
+    print('get_B_data finished')
+
 
 def update_data(data: List, hash_map: dict):
     for col_num, child1, child2, rel_phase in data:
@@ -113,5 +115,5 @@ def from_dict_form_data(num_of_stab_states):
 
 if __name__ == '__main__':
     get_B_data()
-    get_dict_form_data()
+    # get_dict_form_data()
     # from_dict_form_data(315057600)
