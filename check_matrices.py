@@ -138,7 +138,7 @@ def get_top_left():
         )
 
         for sublist in results:
-            top_lefts += sublist
+            top_lefts.extend(sublist)
             if len(top_lefts) > 100_000:
                 pickle.dump(top_lefts, writer)
                 top_lefts = []
@@ -150,7 +150,15 @@ def get_top_left():
     return top_lefts
 
 
-def get_bottom_right_and_merge(top_lefts: Sequence[np.ndarray]):
+def get_bottom_right_and_merge():
+    top_lefts = []
+    with open(f'data/{n}_qubit_top_left.data', 'rb') as reader:
+        try:
+            while True:
+                top_lefts.extend(pickle.load(reader))
+        except EOFError:
+            pass
+
     merged_mats = []
 
     for tl in top_lefts:
@@ -175,6 +183,10 @@ def get_bottom_right_and_merge(top_lefts: Sequence[np.ndarray]):
         # the locations of the non-pivots for the right blocks
         merged_mats.append((mat, (tl.shape[0], n), pivots))
 
+    # TODO May need to split into chunks for larger n
+    with open(f'data/{n}_qubit_bottom_right.data', 'wb') as writer:
+        pickle.dump(merged_mats, writer)
+
     return merged_mats
 
 
@@ -190,6 +202,8 @@ def generate_top_right(tl: np.ndarray, nonzero_cols: List,
         if all(np.array_equiv(np.dot(tl[i, :], cand_row) % 2,
                               np.dot(tl[next_row_index, :], temp[i, :]) % 2)
                for i in range(next_row_index)):
+            # TODO Filter real stab state xmatrs
+
             temp[next_row_index, :] = cand_row
             if next_row_index == tl.shape[0] - 1:
                 yield np.copy(temp)
@@ -240,7 +254,7 @@ def finish(merged_mats: Sequence[Tuple[np.ndarray, Tuple, List]]):
                                       chunksize=10)
 
         for sublist in results:
-            xmatrs += sublist
+            xmatrs.extend(sublist)
             if len(xmatrs) > 100_000:
                 pickle.dump(xmatrs, writer)
                 xmatrs = []
@@ -299,28 +313,28 @@ def filter_real_stabs(xmatrs: List[np.ndarray]):
 
 
 if __name__ == '__main__':
-    top_lefts = get_top_left()
-    merged_mats = get_bottom_right_and_merge(top_lefts)
+    # top_lefts = get_top_left()
+    merged_mats = get_bottom_right_and_merge()
     print(len(merged_mats))
-    last_xmatrs = finish(merged_mats)
+    # last_xmatrs = finish(merged_mats)
 
-    unpolished_xmatrs = []
-    with open(f'data/{n}_qubit_subgroups.data', 'rb') as reader:
-        try:
-            while True:
-                unpolished_xmatrs += pickle.load(reader)
-        except EOFError:
-            pass
+    # unpolished_xmatrs = []
+    # with open(f'data/{n}_qubit_subgroups.data', 'rb') as reader:
+    #     try:
+    #         while True:
+    #             unpolished_xmatrs.extend(pickle.load(reader))
+    #     except EOFError:
+    #         pass
 
-    polished_xmatrs = polish(unpolished_xmatrs)
-    hash_map = get_hash_map(polished_xmatrs)
+    # polished_xmatrs = polish(unpolished_xmatrs)
+    # hash_map = get_hash_map(polished_xmatrs)
 
-    with open(f'data/{n}_qubit_subgroups.data', 'wb') as w1, \
-            open(f'data/{n}_qubit_hash_map.data', 'wb') as w2, \
-            open(f'data/{n}_qubit_subgroups_real.data', 'wb') as w3, \
-            open(f'data/{n}_qubit_hash_map_real.data', 'wb') as w4:
-        pickle.dump(polished_xmatrs, w1)
-        pickle.dump(hash_map, w2)
-        real_xmatrs = filter_real_stabs(polished_xmatrs)
-        pickle.dump(real_xmatrs, w3)
-        pickle.dump(get_hash_map(real_xmatrs), w4)
+    # with open(f'data/{n}_qubit_subgroups.data', 'wb') as w1, \
+    #         open(f'data/{n}_qubit_hash_map.data', 'wb') as w2, \
+    #         open(f'data/{n}_qubit_subgroups_real.data', 'wb') as w3, \
+    #         open(f'data/{n}_qubit_hash_map_real.data', 'wb') as w4:
+    #     pickle.dump(polished_xmatrs, w1)
+    #     pickle.dump(hash_map, w2)
+    #     real_xmatrs = filter_real_stabs(polished_xmatrs)
+    #     pickle.dump(real_xmatrs, w3)
+    #     pickle.dump(get_hash_map(real_xmatrs), w4)
