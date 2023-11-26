@@ -301,10 +301,37 @@ def polish(xmatrs: List[np.ndarray]):
     return xmatrs
 
 
-def get_hash_map(xmatrs: List[np.ndarray]):
+def polish_from_file():
+    with open(f'data/{n}_qubit_subgroups.data', 'rb') as reader, \
+            open(f'data/{n}_qubit_subgroups_polished.data', 'ab') as writer:
+        try:
+            while True:
+                unpolished_xmatrs = pickle.load(reader)
+                polished_xmatrs = polish(unpolished_xmatrs)
+                pickle.dump(polished_xmatrs, writer)
+        except EOFError:
+            pass
+
+
+def get_hash_map(xmatrs: List[np.ndarray], offset=0):
     print('Generating hash_map')
     hash_keys = [str(m) for m in xmatrs]
-    return dict((k, v) for v, k in enumerate(hash_keys))
+    return dict((k, v + offset) for v, k in enumerate(hash_keys))
+
+
+def get_hash_map_from_file():
+    hash_map = {}
+
+    with open(f'data/{n}_qubit_subgroups_polished.data', 'rb') as reader:
+        try:
+            while True:
+                xmatrs = pickle.load(reader)
+                hash_map.update(get_hash_map(xmatrs, offset=len(hash_map)))
+        except EOFError:
+            pass
+
+    with open(f'data/{n}_qubit_hash_map.data', 'wb') as writer:
+        pickle.dump(hash_map, writer)
 
 
 def gives_real_stabs(xmatr: np.ndarray):
@@ -322,25 +349,8 @@ if __name__ == '__main__':
     # top_lefts = get_top_left()
     # merged_mats = get_bottom_right_and_merge()
     # print(len(merged_mats))
-    last_xmatrs = finish()
+    # last_xmatrs = finish()
 
-    # unpolished_xmatrs = []
-    # with open(f'data/{n}_qubit_subgroups.data', 'rb') as reader:
-    #     try:
-    #         while True:
-    #             unpolished_xmatrs.extend(pickle.load(reader))
-    #     except EOFError:
-    #         pass
+    # polish_from_file()
 
-    # polished_xmatrs = polish(unpolished_xmatrs)
-    # hash_map = get_hash_map(polished_xmatrs)
-
-    # with open(f'data/{n}_qubit_subgroups.data', 'wb') as w1, \
-    #         open(f'data/{n}_qubit_hash_map.data', 'wb') as w2, \
-    #         open(f'data/{n}_qubit_subgroups_real.data', 'wb') as w3, \
-    #         open(f'data/{n}_qubit_hash_map_real.data', 'wb') as w4:
-    #     pickle.dump(polished_xmatrs, w1)
-    #     pickle.dump(hash_map, w2)
-    #     real_xmatrs = filter_real_stabs(polished_xmatrs)
-    #     pickle.dump(real_xmatrs, w3)
-    #     pickle.dump(get_hash_map(real_xmatrs), w4)
+    get_hash_map_from_file()
