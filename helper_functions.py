@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import math
 import numba
-import pickle
-import time
 
 import F2_helper.F2_helper as f2
 import multiprocessing as mp
@@ -12,10 +9,10 @@ import numpy as np
 import scipy.sparse as spr
 
 from functools import reduce
-from itertools import count, product
+from itertools import product
 from typing import List, Tuple
 
-n = 7
+n = 6
 
 sqrt2 = 1.4142135623730950
 
