@@ -170,6 +170,7 @@ def get_pauli_between_comp_states(start_bit: int, end_bit: int,
     """
 
     x_part = xmatr_aug[:, :n]
+    # xmatr_aug_orig = xmatr_aug
     xmatr_aug = xmatr_aug[~np.all(x_part == 0, axis=1)]
     num_rows = xmatr_aug.shape[0]
 
@@ -178,8 +179,11 @@ def get_pauli_between_comp_states(start_bit: int, end_bit: int,
 
     for coeffs in product((0, 1), repeat=num_rows):
         coeffs = np.array(coeffs, dtype=np.int8).reshape(num_rows, 1)
+        # try:
         pauli = reduce(lambda r1, r2: add_rows(r1, r2, n),
                        list(coeffs * xmatr_aug))
+        # except TypeError:
+        #     print('fuck')
         if np.array_equiv(start_vec ^ pauli[:n], end_vec):
             return pauli
 

@@ -33,6 +33,13 @@ def T_state(n) -> np.ndarray:
                                   for i in range(1 << n)], dtype=complex)
 
 
+def H_state(n) -> np.ndarray:
+    cos_pi_over_8 = math.sqrt(2 + sqrt2)/2
+    sin_pi_over_8 = math.sqrt(2 - sqrt2)/2
+    return np.array([cos_pi_over_8**(n-ham(i)) * sin_pi_over_8**ham(i)
+                     for i in range(1 << n)])
+
+
 def dicke_state(n, weight) -> np.ndarray:
     dicke_state = np.array(
         [1 if ham(i) == weight else 0 for i in range(1 << n)])
@@ -67,7 +74,7 @@ def optimize_stab_extent(state: np.ndarray, n: int, print_output=True,
     """
 
     filename = f'data/{n}_qubit_B.npz' if do_complex \
-        else f'data/{n}_qubit_B_real_stabs.npz'
+        else f'data/{n}_qubit_B_real.npz'
     B = spr.load_npz(filename)
     num_stab_states, num_non_comp_stab_states = B.shape
 
@@ -110,8 +117,14 @@ def optimize_stab_extent(state: np.ndarray, n: int, print_output=True,
 def more_precise_soln(n: int, B: spr.sparray, x: np.ndarray,
                       non_stab_state: np.ndarray, rnd_dec=4, do_complex=False) -> \
         Tuple[np.ndarray, float, np.ndarray, np.ndarray]:
-    with open(f'data/{n}_qubit_subgroups.data', 'rb') as reader:
-        xmatrs = pickle.load(reader)
+    xmatrs = []
+    with open(f'data/{n}_qubit_subgroups_polished{"" if do_complex else "_real"}.data', 'rb') \
+            as reader:
+        try:
+            while True:
+                xmatrs.extend(pickle.load(reader))
+        except EOFError:
+            pass
 
     num_stab_states = B.shape[0]
 

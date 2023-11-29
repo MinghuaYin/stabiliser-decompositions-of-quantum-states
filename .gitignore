@@ -168,7 +168,7 @@ data/6_B*
 data/*_B_data.data
 data/*_hash_map.data
 data/*.out
-opti_data/
+opti_data*/
 B_data/
 data/old_data.tar.xz
 data/5_B_data_real.data
