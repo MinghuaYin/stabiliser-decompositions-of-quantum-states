@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import gc
 import pickle
 
 import F2_helper.F2_helper as f2
@@ -24,8 +23,13 @@ def get_B_data():
 
     """
 
-    with open(f'data/{n}_qubit_subgroups{tail}.data', 'rb') as r1:
-        xmatr_list = pickle.load(r1)
+    xmatr_list = []
+    with open(f'data/{n}_qubit_subgroups_polished{tail}.data', 'rb') as r1:
+        try:
+            while True:
+                xmatr_list.extend(pickle.load(r1))
+        except EOFError:
+            pass
 
     list_length = len(xmatr_list)
     print(f'{list_length = }')
@@ -109,11 +113,11 @@ def from_dict_form_data(num_of_stab_states):
         B[k] = v
 
     B = B.tocsc()
-    spr.save_npz(f'data/{n}_qubit_B{tail}_stabs', B)
+    spr.save_npz(f'data/{n}_qubit_B{tail}', B)
     return B
 
 
 if __name__ == '__main__':
-    # get_B_data()
+    get_B_data()
     get_dict_form_data()
-    # from_dict_form_data(315057600)
+    # from_dict_form_data(12801792)
