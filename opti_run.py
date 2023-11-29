@@ -42,8 +42,8 @@ with mp.Pool() as pool:
         extent_str = '---' if extent is None else f'{extent**2: .8f}'
         to_print += f'{state.name.ljust(8)}\t\t{np.linalg.norm(old_soln, 1)**2: .8f}' \
                     f'\t\t{extent_str.ljust(10)}\t\t\t\t{time_elapsed}\n'
-        np.save(f'opti_data_test/{state.name}_state_vectors', state_vectors)
-        np.save(f'opti_data_test/{state.name}_coeffs', old_soln)
+        np.save(f'opti_data/{state.name}_state_vectors', state_vectors)
+        np.save(f'opti_data/{state.name}_coeffs', old_soln)
     print(to_print)
 
 print(f'Time elapsed: {time.perf_counter() - start}')
