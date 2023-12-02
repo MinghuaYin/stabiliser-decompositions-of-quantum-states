@@ -5,7 +5,7 @@ import itertools as it
 import multiprocessing as mp
 import numpy as np
 
-from helper_functions import rref_binary
+from B_helper_functions import rref_binary
 from typing import Iterator, List, Sequence, Tuple
 
 

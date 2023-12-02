@@ -519,10 +519,10 @@ def get_stab_state_matrix(n):
 
     matrix = np.hstack([state['vector'] for state in stab_states])
 
-    with open(f'data/{n}_qubit_matrix.data', 'wb') as writer:
-        pickle.dump(matrix, writer)
+    # with open(f'data/{n}_qubit_matrix.data', 'wb') as writer:
+    #     pickle.dump(matrix, writer)
     # Save matrix in csv file
-    np.savetxt(f'data/{n}_qubit_matrix.csv', matrix, delimiter=',', fmt='%.3e')
+    np.savetxt(f'data/{n}_qubit_matrix.csv', matrix, delimiter=',', fmt='%f')
 
     print(f'Total elapsed time: {time.perf_counter() - start_time}')
 
@@ -530,4 +530,5 @@ def get_stab_state_matrix(n):
 
 
 if __name__ == '__main__':
-    five_qubit_stabs = get_stabiliser_states(4)
+    get_stabiliser_states(3)
+    get_stab_state_matrix(3)

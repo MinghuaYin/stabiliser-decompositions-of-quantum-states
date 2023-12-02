@@ -3,7 +3,7 @@
 
 import time
 
-import helper_functions as hf
+import B_helper_functions as hf
 import numpy as np
 
 from check_matrices import check_commute
