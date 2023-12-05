@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import pickle
+import sys
 
 import F2_helper.F2_helper as f2
 import multiprocessing as mp
@@ -55,6 +56,8 @@ def get_B_data():
 
 
 def update_data(args):
+    """args = (data: list, hash_map: dict)"""
+
     data, hash_map = args
     updated_data = []
 
@@ -101,6 +104,26 @@ def get_dict_form_data():
         pickle.dump(big_dict, w)
 
 
+def get_dict_form_data_taskarray(task_id: int):
+    with open(f'data/{n}_qubit_hash_map{tail}.data', 'rb') as r1, \
+            open(f'data/{n}_B_data{tail}.data', 'rb') as r2:
+        hash_map = pickle.load(r1)
+        print(f'{len(hash_map) = }')
+
+        big_dict = {}
+        for _ in range(task_id):
+            pickle.load(r2)
+        partial_data = update_data((pickle.load(r2), hash_map))
+
+    for col_num, child1_index, child2_index, rel_phase in partial_data:
+        big_dict[(child1_index, col_num)] = 1
+        big_dict[(child2_index, col_num)] = rel_phase
+        big_dict[(col_num + (1 << n), col_num)] = -sqrt2
+
+    with open(f'data/{n}_qubit_dict_form{tail}_{task_id}.data', 'wb') as w:
+        pickle.dump(big_dict, w)
+
+
 def from_dict_form_data(num_of_stab_states):
     dtype = float if tail == '_real' else complex
     B = spr.dok_array((num_of_stab_states, num_of_stab_states - (1 << n)),
@@ -118,6 +141,8 @@ def from_dict_form_data(num_of_stab_states):
 
 
 if __name__ == '__main__':
-    get_B_data()
-    get_dict_form_data()
+    # get_B_data()
+    task_id = int(sys.argv[1])
+    get_dict_form_data_taskarray(task_id)
     # from_dict_form_data(12801792)
+    # 9845550 / 100000 -> 99
