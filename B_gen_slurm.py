@@ -111,9 +111,16 @@ def get_dict_form_data_taskarray(task_id: int):
         print(f'{len(hash_map) = }')
 
         big_dict = {}
-        for _ in range(task_id):
+
+        for _ in range(100*task_id):
             pickle.load(r2)
-        partial_data = update_data((pickle.load(r2), hash_map))
+
+        partial_data = []
+        try:
+            for _ in range(100):
+                partial_data.extend(update_data((pickle.load(r2), hash_map)))
+        except EOFError:
+            pass
 
     for col_num, child1_index, child2_index, rel_phase in partial_data:
         big_dict[(child1_index, col_num)] = 1
@@ -124,16 +131,27 @@ def get_dict_form_data_taskarray(task_id: int):
         pickle.dump(big_dict, w)
 
 
-def from_dict_form_data(num_of_stab_states):
+def from_dict_form_data(num_of_stab_states, task_id=None):
     dtype = float if tail == '_real' else complex
     B = spr.dok_array((num_of_stab_states, num_of_stab_states - (1 << n)),
                       dtype=dtype)
 
-    with open(f'data/{n}_qubit_dict_form{tail}.data', 'rb') as r:
-        big_dict = pickle.load(r)
+    if task_id is None:
+        with open(f'data/{n}_qubit_dict_form{tail}.data', 'rb') as r:
+            big_dict = pickle.load(r)
 
-    for k, v in big_dict.items():
-        B[k] = v
+        for k, v in big_dict.items():
+            B[k] = v
+    else:
+        for i in range(task_id*10, task_id*10 + 10):
+            try:
+                with open(f'data/{n}_qubit_dict_form{tail}_{i}.data', 'rb') as r:
+                    big_dict = pickle.load(r)
+            except FileNotFoundError:
+                break
+
+            for k, v in big_dict.items():
+                B[k] = v
 
     B = B.tocsc()
     spr.save_npz(f'data/{n}_qubit_B{tail}', B)
@@ -143,6 +161,5 @@ def from_dict_form_data(num_of_stab_states):
 if __name__ == '__main__':
     # get_B_data()
     task_id = int(sys.argv[1])
-    get_dict_form_data_taskarray(task_id)
-    # from_dict_form_data(12801792)
-    # 9845550 / 100000 -> 99
+    # get_dict_form_data_taskarray(task_id)
+    from_dict_form_data(1_260_230_400, task_id)  # 125
