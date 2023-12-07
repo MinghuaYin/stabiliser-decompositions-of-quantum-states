@@ -213,17 +213,18 @@ def generate_top_right(tl: np.ndarray, nonzero_cols: List,
                               np.dot(tl[next_row_index, :], temp[i, :]) % 2)
                for i in range(next_row_index)):
             # If just_the_reals is True, filter real stab state xmatrs
-            # try:
-            if not just_the_reals or \
-                    np.dot(tl[next_row_index, :], cand_row) % 2 == 0:
-                temp[next_row_index, :] = cand_row
-                if next_row_index == tl.shape[0] - 1:
-                    yield np.copy(temp)
-                else:
-                    yield from generate_top_right(tl, nonzero_cols, np.copy(temp),
-                                                  next_row_index + 1)
-            # except IndexError:
-                # pass
+            try:
+                if not just_the_reals or \
+                        np.dot(tl[next_row_index, :], cand_row) % 2 == 0:
+                    temp[next_row_index, :] = cand_row
+                    if next_row_index == tl.shape[0] - 1:
+                        yield np.copy(temp)
+                    else:
+                        yield from generate_top_right(tl, nonzero_cols, np.copy(temp),
+                                                      next_row_index + 1)
+            except IndexError:
+                print(f'UH-OH! IndexError occurred with'
+                      f'\n{tl = }\n{cand_row = }')
 
 
 def top_right_wrapper(args):
