@@ -154,7 +154,8 @@ def from_dict_form_data(num_of_stab_states, task_id=None):
                 B[k] = v
 
     B = B.tocsc()
-    spr.save_npz(f'data/{n}_qubit_B{tail}', B)
+    spr.save_npz(f'data/{n}_qubit_B{tail}'
+                 f'{("_" + str(task_id)) if task_id is not None else ""}', B)
     return B
 
 
