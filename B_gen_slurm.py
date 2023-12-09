@@ -159,8 +159,20 @@ def from_dict_form_data(num_of_stab_states, task_id=None):
     return B
 
 
+def bootstrap(max_i: int):
+    B = spr.load_npz(f'data/{n}_qubit_B{tail}_0.npz')
+    for i in range(1, max_i + 1):
+        to_add = spr.load_npz(f'data/{n}_qubit_B{tail}_{i}.npz')
+        B += to_add
+        del to_add
+
+    spr.save_npz(f'data/{n}_qubit_B{tail}', B)
+    return B
+
+
 if __name__ == '__main__':
     # get_B_data()
-    task_id = int(sys.argv[1])
+    # task_id = int(sys.argv[1])
     # get_dict_form_data_taskarray(task_id)
-    from_dict_form_data(1_260_230_400, task_id)  # 125
+    # from_dict_form_data(1_260_230_400, task_id)
+    bootstrap(12)
