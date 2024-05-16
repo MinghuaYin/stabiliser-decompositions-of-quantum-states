@@ -37,9 +37,3 @@ n = 4:
 
 n = 5:
 717.2204787489991
-
-status: optimal_inaccurate
-optimal objective value: 2.2080745061317932
-(4/(2 + math.sqrt(2)))**n = 2.207224665997184
-Time elapsed: 717.2204787489991
-/home/lemingathon/anaconda3/lib/python3.10/site-packages/cvxpy/problems/problem.py:1403: UserWarning: Solution may be inaccurate. Try another solver, adjusting the solver settings, or solve with verbose=True for more information.
