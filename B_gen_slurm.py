@@ -18,8 +18,8 @@ from io import BufferedReader
 
 from B_helper_functions import *
 
-# tail = ''
-tail = '_real'  # Use this tail if only real stabiliser states are enough
+tail = ''
+# tail = '_real'  # Use this tail if only real stabiliser states are enough
 
 
 def get_B_data():

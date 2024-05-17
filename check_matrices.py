@@ -25,7 +25,7 @@ def np_block(X):
 
 # ***** EDIT THIS BEFORE RUNNING *****
 n = 6
-just_the_reals = True
+just_the_reals = False  # Set to True if only real stabiliser states are enough
 tail = '_real' if just_the_reals else ''
 
 O = np.zeros((n, n), dtype=np.int8)
@@ -370,7 +370,6 @@ def filter_real_stabs(xmatrs: List[np.ndarray]):
 if __name__ == '__main__':
     top_lefts = get_top_left()
     merged_mats = get_bottom_right_and_merge()
-    # print(len(merged_mats))
     last_xmatrs = finish()
 
     polish_from_file()
