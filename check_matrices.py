@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+
+"""
+This code incrementally generates all the check matrices (without the column of signs) for
+n-qubit stabiliser states. It also generates a dictionary of stabiliser state
+data in preparation for generating the matrix B of linearly dependent triples.
+"""
+
 import numba
 import pickle
 import time
@@ -362,7 +370,7 @@ def filter_real_stabs(xmatrs: List[np.ndarray]):
 if __name__ == '__main__':
     top_lefts = get_top_left()
     merged_mats = get_bottom_right_and_merge()
-    print(len(merged_mats))
+    # print(len(merged_mats))
     last_xmatrs = finish()
 
     polish_from_file()
