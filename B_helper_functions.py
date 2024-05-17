@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+
+"""
+Functions for generating the B matrix of linearly dependent triples.
+"""
 
 import numba
 
@@ -15,8 +18,6 @@ from typing import List, Tuple
 n = 6
 
 sqrt2 = 1.4142135623730950
-
-# -------- Functions for generating the B matrix of linearly dependent triples --------
 
 
 @numba.jit(nopython=True, parallel=False)
@@ -51,7 +52,6 @@ def add_rows(a: np.ndarray, b: np.ndarray, n: int):
     double_paulis = a_mod_4 - b_mod_4
     double_paulis[where_id] = 0
 
-    # numba doesn't support np.unique 😭
     vals, counts = np_unique_impl(double_paulis)
 
     # phase_correction = np.sum(counts[vals != 0]) // 2
@@ -179,11 +179,8 @@ def get_pauli_between_comp_states(start_bit: int, end_bit: int,
 
     for coeffs in product((0, 1), repeat=num_rows):
         coeffs = np.array(coeffs, dtype=np.int8).reshape(num_rows, 1)
-        # try:
         pauli = reduce(lambda r1, r2: add_rows(r1, r2, n),
                        list(coeffs * xmatr_aug))
-        # except TypeError:
-        #     print('fuck')
         if np.array_equiv(start_vec ^ pauli[:n], end_vec):
             return pauli
 

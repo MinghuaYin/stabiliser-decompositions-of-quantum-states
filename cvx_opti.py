@@ -1,3 +1,9 @@
+#!/usr/bin/env python3
+
+"""
+Helper functions for finding the stabiliser extent of various n-qubit states.
+"""
+
 import math
 import pickle
 import sys
@@ -60,18 +66,22 @@ def W_state(n) -> np.ndarray:
 
 
 def optimize_stab_extent(state: np.ndarray, n: int, print_output=True,
-                         solver='GUROBI', do_complex=True) -> Tuple[spr.sparray, float, np.ndarray]:
+                         solver='GUROBI', rnd_dec: int = 4, do_complex=True) -> Tuple[spr.sparray, float, np.ndarray, float]:
     """
 
     Returns
     -------
-    B: spr.sparray
+    soln: spr.sparray
 
     extent: float
 
-    x: np.ndarray
+    state_vectors: np.ndarray
+
+    time_elapsed: float
 
     """
+
+    start = time.perf_counter()
 
     filename = f'data/{n}_qubit_B.npz' if do_complex \
         else f'data/{n}_qubit_B_real.npz'
@@ -85,7 +95,6 @@ def optimize_stab_extent(state: np.ndarray, n: int, print_output=True,
     x_l1 = cp.Variable((num_non_comp_stab_states, 1), complex=do_complex)
 
     obj = cp.Minimize(cp.norm(B @ x_l1 + c, 1))
-    # obj = cp.Minimize((B @ x_l1 + c).count_nonzero())  # TODO Stabilizer rank lol?
 
     prob = cp.Problem(obj)
     eps = 1e-10
@@ -108,15 +117,10 @@ def optimize_stab_extent(state: np.ndarray, n: int, print_output=True,
 
         print(f"optimal objective value: {obj.value}")
         print(f'{obj.value**2 = }')
-        # print(repr(x_l1.value))
-        # print(f'{(4/(2 + math.sqrt(2)))**n = }')
 
-    return B, obj.value, x_l1.value
+    x = x_l1.value
 
-
-def more_precise_soln(n: int, B: spr.sparray, x: np.ndarray,
-                      non_stab_state: np.ndarray, rnd_dec=4, do_complex=False) -> \
-        Tuple[np.ndarray, float, np.ndarray, np.ndarray]:
+    # Get state vectors for the stabiliser states in the optimal decomposition
     xmatrs = []
     with open(f'data/{n}_qubit_subgroups_polished{"" if do_complex else "_real"}.data', 'rb') \
             as reader:
@@ -126,16 +130,10 @@ def more_precise_soln(n: int, B: spr.sparray, x: np.ndarray,
         except EOFError:
             pass
 
-    num_stab_states = B.shape[0]
-
-    c = np.zeros(num_stab_states, dtype=(complex if do_complex else float))
-    c[:(1 << n)] = non_stab_state
-    c = spr.csc_array(c).reshape((num_stab_states, 1))
-
     x_sparse = spr.csc_array(x, dtype=(complex if do_complex else float))
-    old_soln = c + B @ x_sparse
+    soln = c + B @ x_sparse
 
-    nz_indices = round(old_soln, rnd_dec).nonzero()[0]
+    nz_indices = round(soln, rnd_dec).nonzero()[0]
     state_vectors = spr.dok_array(
         (1 << n, len(nz_indices)), dtype=(complex if do_complex else float))
     for j, index in enumerate(nz_indices):
@@ -148,39 +146,4 @@ def more_precise_soln(n: int, B: spr.sparray, x: np.ndarray,
         state_vectors[:, j] = sv
     state_vectors = state_vectors.toarray()
 
-    # TODO There's a bug here somewhere... :/
-    soln_var = cp.Variable((state_vectors.shape[1], 1), complex=do_complex)
-    soln_var.value = old_soln[nz_indices, [0]].reshape(
-        (state_vectors.shape[1], 1))
-    obj = cp.Minimize(cp.norm(soln_var, 1))
-    constrs = [state_vectors @ soln_var == non_stab_state.reshape((1 << n, 1))]
-    prob = cp.Problem(obj, constrs)
-
-    prob.solve(solver='GUROBI', warm_start=True, reoptimize=True)
-    extent = obj.value
-    soln = soln_var.value
-    return old_soln.toarray(), extent, state_vectors, soln
-
-
-def combine(state, n, print_output=True, solver='GUROBI', rnd_dec=4, do_complex=True):
-    """
-    Returns:
-
-    old_soln: np.ndarray
-
-    extent: float
-
-    state_vectors: np.ndarray
-
-    soln: np.ndarray
-
-    time_elapsed = float
-
-    """
-
-    start = time.perf_counter()
-    B, extent, x = optimize_stab_extent(state, n, print_output,
-                                        solver, do_complex)
-    results = more_precise_soln(n, B, x, state, rnd_dec, do_complex)
-    # print(f'Time elapsed for {state = }: {time.perf_counter() - start}')
-    return *results, time.perf_counter() - start
+    return soln, obj.value**2, state_vectors, time.perf_counter() - start

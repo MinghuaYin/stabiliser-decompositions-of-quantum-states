@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+"""
+Code that invokes functions from B_helper_functions.py to incrementally generate
+the B matrix of linearly dependent triples. We used a SLURM
+"""
+
 import pickle
 import sys
 
@@ -14,7 +19,7 @@ from io import BufferedReader
 from B_helper_functions import *
 
 # tail = ''
-tail = '_real'
+tail = '_real'  # Use this tail if only real stabiliser states are enough
 
 
 def get_B_data():
@@ -171,8 +176,8 @@ def bootstrap(max_i: int):
 
 
 if __name__ == '__main__':
-    # get_B_data()
-    # task_id = int(sys.argv[1])
-    # get_dict_form_data_taskarray(task_id)
-    # from_dict_form_data(1_260_230_400, task_id)
-    bootstrap(12)
+    get_B_data()
+    task_id = int(sys.argv[1])
+    get_dict_form_data_taskarray(task_id)
+    from_dict_form_data(1_260_230_400, task_id)
+    # bootstrap(12)
