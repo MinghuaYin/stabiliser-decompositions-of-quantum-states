@@ -10,6 +10,7 @@ import cvx_opti as op
 import multiprocessing as mp
 import numpy as np
 
+min_n = 6
 max_n = 6
 
 
@@ -24,7 +25,7 @@ start = time.perf_counter()
 with mp.Pool() as pool:
     async_res = []
 
-    for n in range(6, max_n + 1):
+    for n in range(min_n, max_n + 1):
         # T = State(f'T^{n}', op.T_state(n))
         H = State(f'H^{n}', op.H_state(n))
         dicke_states = [State(f'D^{n}_{k}', op.dicke_state(n, k))
@@ -38,7 +39,7 @@ with mp.Pool() as pool:
             (state,
              pool.apply_async(op.optimize_stab_extent, (state.vector, n),
                               {'print_output': False, 'solver': 'GUROBI',
-                               'rnd_dec': 4, 'do_complex': False}))
+                               'do_complex': False}))
             for state in n_qubit_states]
 
     to_print = 'State\t\tStabilizer extent\t\tTime elapsed (s)\n' \

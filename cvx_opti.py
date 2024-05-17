@@ -40,6 +40,8 @@ def T_state(n) -> np.ndarray:
 
 
 def H_state(n) -> np.ndarray:
+    """The H state is a real state that is Clifford equivalent to the T state."""
+
     cos_pi_over_8 = math.sqrt(2 + sqrt2)/2
     sin_pi_over_8 = math.sqrt(2 - sqrt2)/2
     return np.array([cos_pi_over_8**(n-ham(i)) * sin_pi_over_8**ham(i)
@@ -66,19 +68,40 @@ def W_state(n) -> np.ndarray:
 
 
 def optimize_stab_extent(state: np.ndarray, n: int, print_output=True,
-                         solver='GUROBI', rnd_dec: int = 4, do_complex=True) -> Tuple[spr.sparray, float, np.ndarray, float]:
+                         solver='GUROBI', do_complex=True) -> Tuple[spr.sparray, float, np.ndarray, float]:
     """
+
+    Parameters
+    ----------
+    state : np.ndarray
+        The state (in state vector form) whose stabiliser extent we wish to find.
+
+    n : int
+        The number of qubits.
+
+    print_output : bool, optional
+        Whether to print the full output from cvxpy, by default True.
+
+    solver : str, optional
+        Which solver should be used with cvxpy, by default 'GUROBI'.
+
+    do_complex : bool, optional
+        Whether to include complex stabiliser states or just real ones, by default True.
 
     Returns
     -------
     soln: spr.sparray
+        The vector c + Bx.
 
     extent: float
+        The computed value of the stabiliser extent.
 
     state_vectors: np.ndarray
+        A matrix whose columns are the stabiliser states found in the
+        extent-optimal stabiliser decomposition.
 
     time_elapsed: float
-
+        Time taken to run the entire function.
     """
 
     start = time.perf_counter()
@@ -133,7 +156,7 @@ def optimize_stab_extent(state: np.ndarray, n: int, print_output=True,
     x_sparse = spr.csc_array(x, dtype=(complex if do_complex else float))
     soln = c + B @ x_sparse
 
-    nz_indices = round(soln, rnd_dec).nonzero()[0]
+    nz_indices = round(soln, 4).nonzero()[0]
     state_vectors = spr.dok_array(
         (1 << n, len(nz_indices)), dtype=(complex if do_complex else float))
     for j, index in enumerate(nz_indices):

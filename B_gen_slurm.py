@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 """
 Code that invokes functions from B_helper_functions.py to incrementally generate
-the B matrix of linearly dependent triples. We used a SLURM
+the B matrix of linearly dependent triples. It was tailored for use on an HPC
+with the Slurm Workload Manager.
 """
 
 import pickle
