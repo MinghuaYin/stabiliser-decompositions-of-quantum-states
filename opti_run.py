@@ -53,4 +53,4 @@ with mp.Pool() as pool:
         np.save(f'opti_data/{state.name}_coeffs', soln)
     print(to_print)
 
-print(f'Time elapsed: {time.perf_counter() - start}')
+print(f'Time elapsed: {time.perf_counter() - start} s')
