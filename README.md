@@ -18,9 +18,9 @@ data in preparation for generating the matrix B of linearly dependent triples.
 - **`timings.txt`**: timings (in seconds) for running the code for $n = 1, \ldots, 5$ qubits.
 
 ### Data directories
-- **`data`**: files, for $n = 1, \ldots, 6$ qubits, that contain
-    - the matrix $B$ in Python-ready `.npz` format,
-    - the check matrices (`..._subgroups_polished.data`) in a readable format for the code,
+- **`data`**: files, for $n = 1, \ldots, 7$ qubits, that contain
+    - the matrix $B$ in Python-ready `.npz` format (compressed for $n=7$),
+    - (for $n \leq 6$) the check matrices (`..._subgroups_polished.data`) in a readable format for the code,
     - (for $n \leq 3$) a matrix whose columns are the $n$-qubit stabiliser states (`..._matrix_sorted.csv`), in a human-readable format,
     - (for $n \leq 3$) the $B$ matrix in a human-readable `.csv` format.
     
