@@ -2,6 +2,8 @@
 
 See paper [arXiv:2311.17384](https://arxiv.org/abs/2311.17384) for the mathematical theory.
 
+Released under GNU General Public License v3.0.
+
 This repository consists of the following files/directories:
 
 ### Python scripts
