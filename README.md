@@ -24,7 +24,7 @@ data in preparation for generating the matrix B of linearly dependent triples.
     - (for $n \leq 3$) a matrix whose columns are the $n$-qubit stabiliser states (`..._matrix_sorted.csv`), in a human-readable format,
     - (for $n \leq 3$) the $B$ matrix in a human-readable `.csv` format.
 
-  The $B$ matrix for $n=7$, compressed into a `.tar.xz` file, can be downloaded [here](https://drive.google.com/file/d/1dwBClesdz-UZ-IGLavsw5JPkrXjFCNvd/view?usp=drive_link).
+  The $B$ matrix for $n=7$, compressed into a `.tar.xz` file, can be downloaded [here](https://drive.proton.me/urls/589WBFDCDG#IBjAgH5vHEgC).
 
   Note that, for $n = 6,7$, the data here is restricted to the set of *real* stabiliser states, due to computational complexity. This means that, with this data, we can only accurately compute the stabiliser extent of a real state (since every real state has an extent-optimal decomposition into real stabiliser states, with real coefficients).
 - **`opti_data`**: files that contain, for a number of 6-qubit states $\ket{\psi}$,
